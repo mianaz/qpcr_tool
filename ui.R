@@ -60,16 +60,19 @@ shinyUI(navbarPage(
                
                # File upload and Run Analysis section
                wellPanel(
-                 fileInput("file", "Upload CSV File",
-                           accept = c("text/csv", ".csv"),
+                 fileInput("file", "Upload CSV or Excel File",
+                           accept = c("text/csv", ".csv", ".xlsx", ".xls"),
                            multiple = FALSE),
                  
                  tags$small(class = "info-text",
-                            "Required columns: Sample, Target, Cq"),
+                            "Required columns: Sample, Target, Cq. Supports CSV and Excel files."),
                  
                  conditionalPanel(
                    condition = "typeof input.file !== 'undefined'",
-                   uiOutput("validationMessages")
+                   tags$div(
+                     uiOutput("sheetSelection"),
+                     uiOutput("validationMessages")
+                   )
                  ),
                  
                  # Run Analysis and Download All Results
@@ -195,18 +198,45 @@ shinyUI(navbarPage(
                                            "95% Confidence Interval" = "ci")),
                    
                    selectInput("colorPalette", "Color Palette",
-                               choices = c("Default" = "default",
+                               choices = c("Classic (Default)" = "classic",
+                                           "Black & White" = "bw",
+                                           "Grayscale" = "grey",
+                                           "Nature (NPG)" = "npg",
+                                           "Science (AAAS)" = "aaas",
+                                           "NEJM" = "nejm",
+                                           "Lancet" = "lancet",
+                                           "JAMA" = "jama",
+                                           "JCO" = "jco",
+                                           "UCSCGB" = "ucscgb",
+                                           "D3" = "d3",
+                                           "IGV" = "igv",
+                                           "Material" = "material",
+                                           "Economist" = "economist",
+                                           "FiveThirtyEight" = "fivethirtyeight",
+                                           "Tableau" = "tableau",
+                                           "Stata" = "stata",
+                                           "Excel" = "excel",
+                                           "Wall Street Journal" = "wsj",
+                                           "Calc" = "calc",
+                                           "Highcharts" = "hc",
+                                           "Pander" = "pander",
                                            "Colorblind Friendly" = "viridis",
-                                           "Nature" = "npg",
-                                           "Publication" = "lancet")),
+                                           "Set1 (Bright)" = "set1",
+                                           "Set2 (Pastel)" = "set2",
+                                           "Set3 (Light)" = "set3",
+                                           "Dark2" = "dark2",
+                                           "Paired" = "paired"),
+                               selected = "classic"),
                    
                    numericInput("plotHeight", "Plot Height (inches)", 
-                                value = 6, min = 2, max = 20),
-                   numericInput("plotWidth", "Plot Width (inches)", 
                                 value = 8, min = 2, max = 20),
+                   numericInput("plotWidth", "Plot Width (inches)", 
+                                value = 10, min = 2, max = 20),
                    sliderInput("fontSize", "Font Size", 
                                min = 8, max = 20, value = 12),
-                   checkboxInput("rotateLabels", "Rotate X-axis Labels", TRUE)
+                   numericInput("facetCols", "Number of Columns", 
+                               min = 1, max = 6, value = 3, 
+                               step = 1)
                  )
                )
              ),

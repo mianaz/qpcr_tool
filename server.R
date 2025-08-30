@@ -13,9 +13,26 @@ library(shinydashboard)
 library(shinyWidgets)
 library(openxlsx)
 library(sortable)
+library(ggsci)
+library(ggthemes)
 
 shinyServer(function(input, output, session) {
-  # Reactive values for storing data and results
+  
+  # Helper function to show notification and log to console
+  showNotificationWithLog <- function(message, type = "default", duration = 5) {
+    # Log to console with appropriate prefix
+    if(type == "error") {
+      cat("[ERROR]", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "-", message, "\n")
+    } else if(type == "warning") {
+      cat("[WARNING]", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "-", message, "\n")
+    } else {
+      cat("[INFO]", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "-", message, "\n")
+    }
+    
+    # Show UI notification
+    showNotification(message, type = type, duration = duration)
+  }
+  
   values <- reactiveValues(
     data = NULL,
     excluded_points = character(0),
@@ -25,7 +42,9 @@ shinyServer(function(input, output, session) {
     stats_results = NULL,
     sample_order = NULL,
     edit_history=list(),
-    analysis_run = FALSE
+    analysis_run = FALSE,
+    excel_sheets = NULL,
+    selected_sheet = NULL
   )
   
   output$analysisMessage <- renderUI({
@@ -39,53 +58,52 @@ shinyServer(function(input, output, session) {
     }
   })
   
-  # analysis handler
   observeEvent(input$runAnalysis, {
     req(values$data, input$controlSample, values$housekeeping_genes)
     
+    cat("[INFO]", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "- Analysis started\n")
+    cat("[INFO]", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "- Control sample:", input$controlSample, "\n")
+    cat("[INFO]", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "- Housekeeping genes:", paste(values$housekeeping_genes, collapse = ", "), "\n")
+    
     withProgress(message = 'Running analysis...', {
-      # Get data excluding excluded points
       analysis_data <- values$data %>% 
         filter(!row_id %in% values$excluded_points)
       
       if(nrow(analysis_data) == 0) {
-        showNotification("No valid data for analysis after exclusions", type = "error")
+        showNotificationWithLog("No valid data for analysis after exclusions", type = "error")
         values$analysis_run <- FALSE
         return()
       }
       
       tryCatch({
-        # Calculate results
         results <- calculateFoldChanges(
           data = analysis_data,
           controlSample = input$controlSample,
           housekeeping_genes = values$housekeeping_genes
         )
         
-        # Store results
         values$results <- results
         
-        # Run statistical analysis only if we have valid results
         if(!is.null(results) && nrow(results) > 0) {
           values$stats_results <- performStatisticalAnalysis(results)
-          values$analysis_run <- TRUE  # Set analysis status to true
-          showNotification("Analysis complete!", type = "message")
+          values$analysis_run <- TRUE
+          showNotificationWithLog("Analysis complete!", type = "message")
         } else {
           values$analysis_run <- FALSE
-          showNotification("Analysis produced no results", type = "warning")
+          showNotificationWithLog("Analysis produced no results", type = "warning")
         }
         
       }, error = function(e) {
         values$analysis_run <- FALSE
-        showNotification(paste("Analysis error:", e$message), type = "error")
+        cat("[ERROR]", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "- Full error details:\n")
+        print(e)
+        showNotificationWithLog(paste("Analysis error:", e$message), type = "error")
       })
     })
   })
   
-  # download results handler
   output$downloadAllResultsButton <- renderUI({
     if (!values$analysis_run) {
-      # If analysis hasn't been run, show disabled button with tooltip
       tags$div(
         style = "position: relative;",
         tags$div(
@@ -96,14 +114,12 @@ shinyServer(function(input, output, session) {
         )
       )
     } else {
-      # If analysis has been run, show enabled button
       downloadButton("downloadAllResults", "Download All Results",
                      class = "btn-success",
                      style = "width: 100%;")
     }
   })
   
-  # Validation function
   validateData <- function(data) {
     if(is.null(data) || nrow(data) == 0) {
       return("No data available")
@@ -116,13 +132,11 @@ shinyServer(function(input, output, session) {
       return(paste("Missing required columns:", paste(missing_cols, collapse = ", ")))
     }
     
-    # Check for valid numeric Cq values
     invalid_cq <- sum(is.na(data$Cq) | !is.finite(data$Cq))
     if(invalid_cq > 0) {
       return(paste("Found", invalid_cq, "invalid Cq values"))
     }
     
-    # Check for minimum number of samples and targets
     if(length(unique(data$Sample)) < 2) {
       return("Need at least 2 different samples for analysis")
     }
@@ -131,101 +145,288 @@ shinyServer(function(input, output, session) {
       return("Need at least 2 different targets for analysis")
     }
     
-    return(NULL)  # NULL indicates validation passed
+    return(NULL)
   }
   
-  # File upload handler with enhanced data processing
+  # Sheet selection UI
+  output$sheetSelection <- renderUI({
+    req(input$file)
+    file_ext <- tolower(tools::file_ext(input$file$datapath))
+    
+    if(file_ext %in% c("xlsx", "xls") && !is.null(values$excel_sheets)) {
+      if(length(values$excel_sheets$valid_sheets) > 0) {
+        selectInput("excelSheet", 
+                   "Select Sheet:",
+                   choices = values$excel_sheets$valid_sheets,
+                   selected = values$excel_sheets$valid_sheets[1])
+      } else {
+        tags$div(
+          class = "alert alert-warning",
+          "No sheets with valid data found in Excel file"
+        )
+      }
+    }
+  })
+  
+  # Detect sheets in Excel file
   observeEvent(input$file, {
     req(input$file)
     values$analysis_run <- FALSE
+    values$data <- NULL
+    values$excel_sheets <- NULL
+    
+    cat("[INFO]", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "- File upload started:", input$file$name, "\n")
+    
+    file_ext <- tolower(tools::file_ext(input$file$datapath))
+    
+    if(file_ext %in% c("xlsx", "xls")) {
+      # Detect and validate sheets
+      tryCatch({
+        sheets <- openxlsx::getSheetNames(input$file$datapath)
+        cat("[INFO]", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "- Found", length(sheets), "sheets:", paste(sheets, collapse = ", "), "\n")
+        
+        valid_sheets <- character()
+        sheet_info <- list()
+        
+        for(sheet in sheets) {
+          cat("[INFO]", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "- Checking sheet:", sheet, "\n")
+          
+          # Try to read the sheet with skipEmptyRows
+          sheet_data <- tryCatch({
+            openxlsx::read.xlsx(input$file$datapath, sheet = sheet, skipEmptyRows = TRUE, skipEmptyCols = TRUE)
+          }, error = function(e) {
+            cat("[WARNING]", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "- Could not read sheet", sheet, ":", e$message, "\n")
+            NULL
+          })
+          
+          if(!is.null(sheet_data) && nrow(sheet_data) > 0) {
+            # Check if the column names contain required fields
+            header_text <- tolower(paste(names(sheet_data), collapse = " "))
+            
+            has_required <- grepl("sample", header_text) && 
+                           grepl("target", header_text) && 
+                           (grepl("\\bcq\\b", header_text) || grepl("\\bct\\b", header_text))
+            
+            if(has_required) {
+              valid_sheets <- c(valid_sheets, sheet)
+              cat("[INFO]", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "- Sheet", sheet, "has valid qPCR data\n")
+            }
+          }
+        }
+        
+        values$excel_sheets <- list(
+          all_sheets = sheets,
+          valid_sheets = valid_sheets,
+          sheet_info = sheet_info
+        )
+        
+        if(length(valid_sheets) == 0) {
+          showNotificationWithLog("No sheets with valid qPCR data found in Excel file", type = "error")
+        } else {
+          cat("[INFO]", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "- Valid sheets found:", paste(valid_sheets, collapse = ", "), "\n")
+        }
+        
+      }, error = function(e) {
+        cat("[ERROR]", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "- Error detecting sheets:", e$message, "\n")
+        showNotificationWithLog(paste("Error reading Excel file:", e$message), type = "error")
+      })
+    } else {
+      # For CSV files, load immediately
+      loadDataFromFile(input$file$datapath, file_ext)
+    }
+  })
+  
+  # Load data when sheet is selected
+  observeEvent(input$excelSheet, {
+    req(input$file, input$excelSheet)
+    
+    file_ext <- tolower(tools::file_ext(input$file$datapath))
+    if(file_ext %in% c("xlsx", "xls")) {
+      cat("[INFO]", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "- Loading sheet:", input$excelSheet, "\n")
+      loadDataFromFile(input$file$datapath, file_ext, sheet = input$excelSheet)
+    }
+  })
+  
+  # Function to load data from file
+  loadDataFromFile <- function(filepath, file_ext, sheet = NULL) {
+    values$analysis_run <- FALSE
 
     tryCatch({
-      # Read the file with explicit line ending handling
-      con <- file(input$file$datapath, "r")
-      all_lines <- readLines(con, warn = FALSE)
-      close(con)
+      cat("[INFO]", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "- File type:", file_ext, "\n")
       
-      # Find where the actual data headers start
-      header_index <- which(grepl("Target,Content,Sample,Cq|Sample,Target,Cq", all_lines))[1]
+      if(file_ext %in% c("xlsx", "xls")) {
+        # Handle Excel files - skip empty rows automatically
+        if(is.null(sheet)) {
+          sheet <- 1  # Default to first sheet if not specified
+        }
+        
+        # Read with skipEmptyRows to handle files with metadata/empty rows at top
+        data <- openxlsx::read.xlsx(filepath, sheet = sheet, skipEmptyRows = TRUE, skipEmptyCols = TRUE)
+        
+        cat("[INFO]", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "- Reading Excel sheet:", sheet, "\n")
+        cat("[INFO]", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "- Column names found:", paste(names(data), collapse = ", "), "\n")
+        
+        # Check if the first row looks like valid headers
+        required_patterns <- c("sample", "target", "cq|ct")
+        header_text <- tolower(paste(names(data), collapse = " "))
+        
+        has_valid_headers <- grepl("sample", header_text) && 
+                            grepl("target", header_text) && 
+                            (grepl("\\bcq\\b", header_text) || grepl("\\bct\\b", header_text))
+        
+        if(!has_valid_headers) {
+          showNotificationWithLog("Invalid headers detected. The first row with data should contain column headers including 'Sample', 'Target', and 'Cq' (or 'Ct'). Please check your Excel file.", type = "error")
+          cat("[ERROR]", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "- Invalid headers. Found columns:", paste(names(data), collapse = ", "), "\n")
+          return()
+        }
+        
+      } else {
+        # Handle CSV files
+        con <- file(filepath, "r")
+        all_lines <- readLines(con, warn = FALSE)
+        close(con)
+        
+        # Search for headers more flexibly
+        header_patterns <- c(
+          "Target.*Sample.*Cq",
+          "Sample.*Target.*Cq", 
+          "Target.*Sample.*C[Tt]",
+          "Sample.*Target.*C[Tt]"
+        )
+        
+        header_index <- NA
+        for(pattern in header_patterns) {
+          header_index <- which(grepl(pattern, all_lines, ignore.case = TRUE))[1]
+          if(!is.na(header_index)) break
+        }
+        
+        if (is.na(header_index)) {
+          # Try to find by looking for a line with all three keywords
+          for(i in 1:min(20, length(all_lines))) {
+            line_upper <- toupper(all_lines[i])
+            if(grepl("TARGET", line_upper) && grepl("SAMPLE", line_upper) && 
+               (grepl("CQ", line_upper) || grepl("CT", line_upper))) {
+              header_index <- i
+              break
+            }
+          }
+        }
+        
+        if (is.na(header_index)) {
+          showNotificationWithLog("Could not find data headers in file", type = "error")
+          return()
+        }
+        
+        data_lines <- all_lines[header_index:length(all_lines)]
+        temp_file <- tempfile(fileext = ".csv")
+        writeLines(data_lines, temp_file)
+        
+        data <- read.csv(temp_file, stringsAsFactors = FALSE)
+      }
       
-      if (is.na(header_index)) {
-        showNotification("Could not find data headers in file", type = "error")
+      data <- data[rowSums(is.na(data) | data == "") != ncol(data), ]
+      
+      # Clean column names to avoid issues with special characters
+      names(data) <- make.names(names(data), unique = TRUE)
+      
+      # Find required columns (case-insensitive)
+      col_mapping <- list()
+      for(col in names(data)) {
+        col_lower <- tolower(col)
+        if(grepl("sample", col_lower) && !("Sample" %in% names(col_mapping))) {
+          col_mapping[["Sample"]] <- col
+        } else if(grepl("target", col_lower) && !("Target" %in% names(col_mapping))) {
+          col_mapping[["Target"]] <- col
+        } else if((grepl("^cq$|^ct$", col_lower) || grepl("cq$|ct$", col_lower)) && !("Cq" %in% names(col_mapping))) {
+          col_mapping[["Cq"]] <- col
+        }
+      }
+      
+      # Rename columns to standard names
+      for(standard_name in names(col_mapping)) {
+        original_name <- col_mapping[[standard_name]]
+        if(original_name != standard_name) {
+          names(data)[names(data) == original_name] <- standard_name
+        }
+      }
+      
+      # Keep all columns but only process required ones
+      required_cols <- c("Sample", "Target", "Cq")
+      missing_cols <- required_cols[!required_cols %in% names(data)]
+      
+      if(length(missing_cols) > 0) {
+        cat("[ERROR]", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "- Missing columns:", paste(missing_cols, collapse = ", "), "\n")
+        cat("[INFO]", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "- Available columns:", paste(names(data), collapse = ", "), "\n")
+      
+      # Log sample of data for debugging
+      cat("[INFO]", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "- First few rows of data:\n")
+      print(head(data[, required_cols], n = 3))
+        showNotificationWithLog(paste("Missing required columns:", paste(missing_cols, collapse = ", ")), type = "error")
         return()
       }
       
-      # Read only from the header line onwards
-      data_lines <- all_lines[header_index:length(all_lines)]
-      temp_file <- tempfile(fileext = ".csv")
-      writeLines(data_lines, temp_file)
-      
-      # Read the cleaned data
-      data <- read.csv(temp_file, stringsAsFactors = FALSE)
-      
-      # Remove any completely empty rows
-      data <- data[rowSums(is.na(data) | data == "") != ncol(data), ]
-      
-      # Clean and sort the data with explicit type conversion
       data <- data %>%
         filter(!is.na(Sample) & Sample != "" & 
                  !is.na(Target) & Target != "" & 
                  !is.na(Cq) & Cq != "") %>%
         mutate(
+          Sample = as.character(Sample),
+          Target = as.character(Target),
+          Cq = as.numeric(as.character(Cq)),
+          row_id = paste(row_number(), Target, Sample, Cq, sep = "__|__")
+        ) %>%
+        mutate(
           Sample = factor(Sample),
-          Target = factor(Target),
-          Cq = as.numeric(as.character(Cq)),  # Ensure Cq is numeric
-          # Create a unique identifier using all relevant information
-          row_id = paste(Well, Target, Sample, Cq, sep = "__|__")
+          Target = factor(Target)
         ) %>%
         arrange(Sample, Target)
       
-      # Remove any rows where Cq conversion failed
       invalid_cq <- is.na(data$Cq)
       if(any(invalid_cq)) {
         invalid_rows <- which(invalid_cq)
-        showNotification(
+        showNotificationWithLog(
           sprintf("Removed %d rows with invalid Cq values", length(invalid_rows)),
           type = "warning"
         )
         data <- data[!invalid_cq, ]
       }
       
-      # Initialize sample order
       values$sample_order <- levels(data$Sample)
       
-      # Validate data
       validation_result <- validateData(data)
       if(!is.null(validation_result)) {
-        showNotification(validation_result, type = "error")
+        showNotificationWithLog(validation_result, type = "error")
         return()
       }
       
-      # Store cleaned data
       values$data <- data
       
-      # Update control sample selection
+      # Log information about loaded data
+      cat("[INFO]", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "- Data loaded with columns:", paste(names(data), collapse = ", "), "\n")
+      cat("[INFO]", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "- Unique samples:", paste(unique(data$Sample), collapse = ", "), "\n")
+      cat("[INFO]", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "- Unique targets:", paste(unique(data$Target), collapse = ", "), "\n")
+      
       updateSelectInput(session, "controlSample",
                         choices = levels(data$Sample),
                         selected = levels(data$Sample)[1])
       
-      # Update manual housekeeping gene selection
       updateSelectInput(session, "manualHKGenes",
                         choices = levels(data$Target))
       
-      # Auto-detect housekeeping genes if enabled
       detectHousekeepingGenes()
       
-      # Show success message
-      showNotification(
+      showNotificationWithLog(
         paste("Successfully loaded", nrow(data), "data points"),
         type = "message"
       )
       
     }, error = function(e) {
-      showNotification(paste("Error reading file:", e$message), type = "error")
+      cat("[ERROR]", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "- File reading error details:\n")
+      print(e)
+      showNotificationWithLog(paste("Error reading file:", e$message), type = "error")
     })
-  })
+  }  # End of loadDataFromFile function
   
-  # Sample order UI
   output$sampleOrderUI <- renderUI({
     req(values$data)
     sortable::rank_list(
@@ -235,7 +436,6 @@ shinyServer(function(input, output, session) {
     )
   })
   
-  # Update sample order
   observeEvent(input$updateOrder, {
     req(input$sample_order_list)
     values$sample_order <- input$sample_order_list
@@ -243,7 +443,6 @@ shinyServer(function(input, output, session) {
     updateTextInput(session, "plotTitle",
                     value = "Relative Expression Analysis")
     
-    # Update the Sample factor in data and results as before
     if(!is.null(values$data)) {
       values$data$Sample <- factor(values$data$Sample, 
                                    levels = values$sample_order)
@@ -254,7 +453,6 @@ shinyServer(function(input, output, session) {
     }
   })
   
-  # exclude selected and clear exclusion
   observeEvent(input$excludeSelected, {
     req(values$ordered_data, input$rawDataPreview_rows_selected)
     
@@ -262,12 +460,11 @@ shinyServer(function(input, output, session) {
       selected_rows <- values$ordered_data %>%
         filter(row_index %in% input$rawDataPreview_rows_selected)
       
-      # Log each exclusion
       for(i in 1:nrow(selected_rows)) {
         new_exclusion <- list(
           timestamp = Sys.time(),
           type = "exclusion",
-          well = selected_rows$Well[i],
+          row_num = i,
           target = selected_rows$Target[i],
           sample = selected_rows$Sample[i],
           cq = selected_rows$Cq[i]
@@ -280,14 +477,8 @@ shinyServer(function(input, output, session) {
     }
   })
   
-  # Add clear exclusions observer
   observeEvent(input$clearExclusions, {
-    print("Clearing all exclusions")
-    print("Previous excluded points:")
-    print(values$excluded_points)
-    
     if(length(values$excluded_points) > 0) {
-      # Log the clearing of exclusions
       clearing_log <- list(
         timestamp = Sys.time(),
         type = "clear_exclusions",
@@ -298,19 +489,14 @@ shinyServer(function(input, output, session) {
     
     values$excluded_points <- character(0)
     
-    print("After clearing:")
-    print(values$excluded_points)
-    
-    showNotification("Cleared all exclusions", type = "message")
+    showNotificationWithLog("Cleared all exclusions", type = "message")
   })
   
   output$excludedPointsSummary <- renderText({
     req(values$data)
     
-    # Initialize summary text
     summary_parts <- character()
     
-    # 1. Current Exclusions Summary
     if(length(values$excluded_points) > 0) {
       excluded_data <- values$data %>%
         filter(row_id %in% values$excluded_points) %>%
@@ -331,28 +517,26 @@ shinyServer(function(input, output, session) {
       }
     }
     
-    # 2. Edit History
     if(length(values$edit_history) > 0) {
       summary_parts <- c(summary_parts, "\nModification History:")
       
-      # Process each edit/exclusion in reverse chronological order
       for(i in length(values$edit_history):1) {
         entry <- values$edit_history[[i]]
         timestamp <- format(entry$timestamp, "%Y-%m-%d %H:%M:%S")
         
         if(entry$type == "edit") {
-          log_entry <- sprintf("  %s: Edited %s in Well %s (%s, %s) from %s to %s",
+          log_entry <- sprintf("  %s: Edited %s in row %s (%s, %s) from %s to %s",
                                timestamp,
                                entry$column,
-                               entry$well,
+                               entry$row_num,
                                entry$target,
                                entry$sample,
                                entry$old_value,
                                entry$new_value)
         } else if(entry$type == "exclusion") {
-          log_entry <- sprintf("  %s: Excluded point - Well %s (%s, %s, Cq=%.2f)",
+          log_entry <- sprintf("  %s: Excluded point - Row %s (%s, %s, Cq=%.2f)",
                                timestamp,
-                               entry$well,
+                               entry$row_num,
                                entry$target,
                                entry$sample,
                                entry$cq)
@@ -366,27 +550,20 @@ shinyServer(function(input, output, session) {
       }
     }
     
-    # If no modifications at all
     if(length(summary_parts) == 0) {
       return("No data modifications")
     }
     
-    # Combine all parts with proper spacing
     paste(summary_parts, collapse = "\n\n")
   })
   
-  # Server Part 2: Data Analysis and Calculations
-  
-  # Housekeeping gene detection
   detectHousekeepingGenes <- reactive({
     req(values$data)
     
     if (input$autoDetectHK) {
-      # Auto-detect based on pattern
       pattern <- input$hkPattern
       potential_hk <- levels(values$data$Target)[grep(pattern, levels(values$data$Target), ignore.case = TRUE)]
       
-      # If no housekeeping genes found with pattern, check for common names
       if (length(potential_hk) == 0) {
         common_hk <- c("RNA18SN5", "RNA18S", "GAPDH", "ACTB", "B2M", "HPRT1", "TBP")
         potential_hk <- levels(values$data$Target)[levels(values$data$Target) %in% common_hk]
@@ -395,12 +572,12 @@ shinyServer(function(input, output, session) {
       values$housekeeping_genes <- potential_hk
       
       if (length(potential_hk) == 0) {
-        showNotification(
+        showNotificationWithLog(
           "No housekeeping genes detected automatically. Please select manually.",
           type = "warning"
         )
       } else {
-        showNotification(
+        showNotificationWithLog(
           paste("Detected housekeeping genes:", paste(potential_hk, collapse = ", ")),
           type = "message"
         )
@@ -410,12 +587,10 @@ shinyServer(function(input, output, session) {
     }
   })
   
-  # Observe changes in housekeeping gene settings
   observeEvent(c(input$autoDetectHK, input$hkPattern, input$manualHKGenes), {
     detectHousekeepingGenes()
   })
   
-  # Modified fold change calculation function with detailed intermediate values
   calculateFoldChanges <- function(data, controlSample, housekeeping_genes) {
     if(is.null(data) || nrow(data) == 0) {
       stop("No data available for analysis")
@@ -429,7 +604,6 @@ shinyServer(function(input, output, session) {
       stop("No housekeeping genes selected")
     }
     
-    # Calculate reference values from housekeeping genes
     ref_values <- data %>%
       filter(Target %in% housekeeping_genes) %>%
       group_by(Sample) %>%
@@ -443,21 +617,18 @@ shinyServer(function(input, output, session) {
         .groups = 'drop'
       )
     
-    # Ensure we have reference values for all samples
     if(nrow(ref_values) == 0) {
       stop("No valid reference values calculated")
     }
     
-    # Calculate dCt values
     dct_values <- data %>%
       filter(!Target %in% housekeeping_genes) %>%
       left_join(ref_values, by = "Sample") %>%
       mutate(
         dCt = Cq - ref_Cq,
-        dCt_sd = if_else(is.na(ref_sd), 0, ref_sd)  # Handle single replicates
+        dCt_sd = if_else(is.na(ref_sd), 0, ref_sd)
       )
     
-    # Calculate control values
     control_values <- dct_values %>%
       filter(Sample == controlSample) %>%
       group_by(Target) %>%
@@ -471,7 +642,6 @@ shinyServer(function(input, output, session) {
       stop("No valid control values calculated")
     }
     
-    # Calculate final results with all intermediate values
     final_results <- dct_values %>%
       left_join(control_values, by = "Target") %>%
       mutate(
@@ -612,12 +782,12 @@ shinyServer(function(input, output, session) {
     values$ordered_data <- display_data
     
     display_table <- display_data %>%
-      select(-row_id)
+      select(row_index, everything(), -row_id)
     
     DT::datatable(
       display_table,
       selection = 'multiple',
-      editable = TRUE,
+      editable = list(target = 'cell', disable = list(columns = c(0))),  # Disable editing only for row_index column
       extensions = c('Buttons'),
       options = list(
         pageLength = -1,
@@ -646,48 +816,37 @@ shinyServer(function(input, output, session) {
       formatRound('Cq', digits = 2)
   })
   
-  # Complete cell edit observer
   observeEvent(input$rawDataPreview_cell_edit, {
     info <- input$rawDataPreview_cell_edit
-    print("Cell edit info:")
-    print(info)
     
     isolate({
-      # Get the edited row index and column
       edited_row_index <- info$row
-      col_name <- names(values$ordered_data)[info$col + 1]  # Convert from 0-based to 1-based index
+      display_cols <- names(values$ordered_data %>% select(row_index, everything(), -row_id))
+      col_name <- display_cols[info$col + 1]
       v <- info$value
       
-      print(paste("Edited row index:", edited_row_index))
-      print(paste("Editing column:", col_name))
-      print(paste("New value:", v))
+      if(col_name == "row_index") {
+        showNotificationWithLog("Cannot edit row index", type = "warning")
+        return()
+      }
       
-      # Find the corresponding row using row_index
-      original_row <- which(values$ordered_data$row_index == edited_row_index)
+      actual_row_index <- values$ordered_data$row_index[edited_row_index]
       
-      print(paste("Original row index:", original_row))
-      print("Original data row:")
-      print(values$data[original_row, ])
-      
-      if(length(original_row) == 1) {
-        # Store old value and row_id for logging
-        old_value <- values$data[original_row, col_name]
-        old_row_id <- values$data$row_id[original_row]
+      if(length(actual_row_index) == 1 && !is.na(actual_row_index)) {
+        old_value <- values$data[actual_row_index, col_name]
+        old_row_id <- values$data$row_id[actual_row_index]
         
-        # Handle different column types
         if(col_name == "Cq") {
-          # Convert and validate Cq value
           v <- tryCatch({
             as.numeric(as.character(v))
           }, warning = function(w) NA, error = function(e) NA)
           
           if(is.na(v) || v < 0 || v > 50) {
-            showNotification("Invalid Cq value. Please enter a number between 0 and 50.", 
+            showNotificationWithLog("Invalid Cq value. Please enter a number between 0 and 50.", 
                              type = "error")
             return()
           }
         } else if(col_name %in% c("Sample", "Target")) {
-          # For factor columns, check if the new value exists in levels
           current_levels <- levels(values$data[[col_name]])
           if(!v %in% current_levels) {
             values$data[[col_name]] <- factor(values$data[[col_name]], 
@@ -695,142 +854,51 @@ shinyServer(function(input, output, session) {
           }
         }
         
-        # Update the value
-        values$data[original_row, col_name] <- v
+        values$data[actual_row_index, col_name] <- v
         
-        print("After update:")
-        print(values$data[original_row, ])
-        
-        # Update row_id if key fields changed
         if(col_name %in% c("Sample", "Target", "Cq")) {
-          # Create new row_id using current values
           new_row_id <- paste(
-            values$data$Well[original_row],
-            values$data$Target[original_row],
-            values$data$Sample[original_row],
-            values$data$Cq[original_row],
+            actual_row_index,
+            values$data$Target[actual_row_index],
+            values$data$Sample[actual_row_index],
+            values$data$Cq[actual_row_index],
             sep = "__|__"
           )
           
-          # Update excluded points if necessary
           if(old_row_id %in% values$excluded_points) {
             values$excluded_points <- setdiff(values$excluded_points, old_row_id)
             values$excluded_points <- c(values$excluded_points, new_row_id)
           }
           
-          # Update row_id
-          values$data$row_id[original_row] <- new_row_id
+          values$data$row_id[actual_row_index] <- new_row_id
         }
         
-        # Log the edit
         new_edit <- list(
           timestamp = Sys.time(),
           type = "edit",
-          well = values$data[original_row, "Well"],
-          target = values$data[original_row, "Target"],
-          sample = values$data[original_row, "Sample"],
+          row_num = actual_row_index,
+          target = values$data[actual_row_index, "Target"],
+          sample = values$data[actual_row_index, "Sample"],
           column = col_name,
           old_value = old_value,
-          new_value = v,
-          row_index = original_row
+          new_value = v
         )
         
-        # Add to edit history
         values$edit_history <- c(values$edit_history, list(new_edit))
         
-        # Show success notification
-        showNotification(sprintf("Updated %s from %s to %s in row %s", 
-                                 col_name, 
-                                 old_value, 
-                                 v,
-                                 values$data[original_row, "Well"]), 
+        showNotificationWithLog(sprintf("Updated %s from %s to %s in row %d", 
+                                 col_name, old_value, v, actual_row_index), 
                          type = "message")
         
-        # Force refresh of the data
-        values$data <- values$data  # This triggers reactivity
-        
-        # Re-run analysis if needed
-        if(!is.null(values$results)) {
-          # Re-run analysis with current settings
-          req(input$controlSample, values$housekeeping_genes)
-          
-          withProgress(message = 'Updating analysis...', {
-            analysis_data <- values$data %>% 
-              filter(!row_id %in% values$excluded_points)
-            
-            if(nrow(analysis_data) > 0) {
-              tryCatch({
-                # Calculate results
-                results <- calculateFoldChanges(
-                  data = analysis_data,
-                  controlSample = input$controlSample,
-                  housekeeping_genes = values$housekeeping_genes
-                )
-                
-                # Store results
-                values$results <- results
-                
-                # Run statistical analysis
-                if(!is.null(results) && nrow(results) > 0) {
-                  values$stats_results <- performStatisticalAnalysis(results)
-                  showNotification("Analysis updated!", type = "message")
-                }
-                
-              }, error = function(e) {
-                showNotification(paste("Analysis update error:", e$message), 
-                                 type = "error")
-              })
-            }
-          })
-        }
+        values$data <- values$data
       } else {
-        showNotification("Error: Could not locate row to update", 
-                         type = "error")
+        showNotificationWithLog("Error: Could not locate row to update", type = "error")
       }
     })
-  })
-  
-  # Add reactive trigger for analysis
-  observeEvent(values$data, {
-    # If there's a previous analysis, re-run it with updated data
-    if(!is.null(values$results)) {
-      # Re-run analysis with current settings
-      req(input$controlSample, values$housekeeping_genes)
-      
-      withProgress(message = 'Updating analysis...', {
-        analysis_data <- values$data %>% 
-          filter(!row_id %in% values$excluded_points)
-        
-        if(nrow(analysis_data) > 0) {
-          tryCatch({
-            # Calculate results
-            results <- calculateFoldChanges(
-              data = analysis_data,
-              controlSample = input$controlSample,
-              housekeeping_genes = values$housekeeping_genes
-            )
-            
-            # Store results
-            values$results <- results
-            
-            # Run statistical analysis
-            if(!is.null(results) && nrow(results) > 0) {
-              values$stats_results <- performStatisticalAnalysis(results)
-              showNotification("Analysis updated!", type = "message")
-            }
-            
-          }, error = function(e) {
-            showNotification(paste("Analysis update error:", e$message), 
-                             type = "error")
-          })
-        }
-      })
-    }
   })
  
   
   createQCPlot <- function(data, excluded_points) {
-    # Create distribution plot
     p1 <- data %>%
       mutate(
         Status = ifelse(row_id %in% excluded_points, "Excluded", "Included")
@@ -842,14 +910,13 @@ shinyServer(function(input, output, session) {
                  size = 2) +
       scale_color_manual(values = c("Included" = "black", "Excluded" = "red")) +
       theme_prism() +
-      theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+      theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1)) +
       labs(title = "Quality Control: Cq Values Distribution",
            y = "Cq Value") +
       scale_fill_viridis_d()
     
-    # Create CV plot
     cv_data <- data %>%
-      filter(!row_id %in% excluded_points) %>%  # Exclude manually excluded points
+      filter(!row_id %in% excluded_points) %>%
       group_by(Target, Sample) %>%
       summarise(
         CV = (sd(Cq, na.rm = TRUE) / mean(Cq, na.rm = TRUE)) * 100,
@@ -860,7 +927,7 @@ shinyServer(function(input, output, session) {
       geom_bar(stat = "identity", position = position_dodge(0.9)) +
       geom_hline(yintercept = 5, linetype = "dashed", color = "red") +
       theme_prism() +
-      theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+      theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1)) +
       labs(title = "Coefficient of Variation (CV)",
            y = "CV (%)") +
       scale_fill_viridis_d() +
@@ -878,7 +945,6 @@ shinyServer(function(input, output, session) {
     return(list(p1 = p1, p2 = p2))
   }
   
-  # fold change plot
   createFoldChangePlot <- function(plot_data, values, input) {
     if(nrow(plot_data) == 0) {
       return(ggplot() + 
@@ -887,16 +953,13 @@ shinyServer(function(input, output, session) {
                theme_void())
     }
     
-    # Use custom sample order if available
     if(!is.null(values$sample_order)) {
       plot_data$Sample <- factor(plot_data$Sample, levels = values$sample_order)
     }
     
-    # Create base plot
     p <- ggplot(plot_data, aes(x = Sample, y = individual_fold_change)) +
-      facet_wrap(~Target, scales = "free_y")
+      facet_wrap(~Target, scales = "free", ncol = input$facetCols)
     
-    # Add main geometry based on plot type
     if(input$plotType == "bar") {
       p <- p + stat_summary(aes(fill = Sample),
                             fun = mean,
@@ -914,7 +977,6 @@ shinyServer(function(input, output, session) {
                            na.rm = TRUE)
     }
     
-    # Add individual points if requested
     if(input$showIndividualPoints) {
       p <- p + geom_jitter(width = 0.2,
                            alpha = 0.6,
@@ -923,7 +985,6 @@ shinyServer(function(input, output, session) {
                            na.rm = TRUE)
     }
     
-    # Add error bars
     if(input$errorBar == "se") {
       p <- p + stat_summary(fun.data = mean_se,
                             geom = "errorbar",
@@ -944,26 +1005,29 @@ shinyServer(function(input, output, session) {
                             na.rm = TRUE)
     }
     
-    # Add significance if requested
     if(input$showSignificance) {
       p <- addSignificanceMarkers(p, plot_data, values, input)
     }
     
-    # Apply theme and formatting
     p <- p +
       theme_prism(base_size = input$fontSize) +
-      {if(input$rotateLabels) 
-        theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))} +
-      labs(title = input$plotTitle,  # Use custom title
+      labs(title = input$plotTitle,
            y = "Fold Change (2^-ddCt)",
            x = "Sample") +
       theme(
         legend.position = "right",
         strip.text = element_text(size = rel(1.2)),
-        axis.title = element_text(size = rel(1.1))
+        axis.title = element_text(size = rel(1.1)),
+        axis.text.x = element_text(
+          angle = 45,
+          hjust = 1,
+          vjust = 1,
+          size = rel(0.9)
+        ),
+        panel.spacing.x = unit(2, "lines"),
+        panel.spacing.y = unit(3, "lines")
       )
     
-    # Apply color palette
     p <- addColorPalette(p, input$colorPalette)
     
     return(p)
@@ -984,16 +1048,23 @@ shinyServer(function(input, output, session) {
     }
     
     createFoldChangePlot(plot_data, values, input)
-  }, height = 600)
+  }, height = function() {
+    # Dynamic height based on number of targets and columns
+    if(!is.null(values$results)) {
+      n_targets <- length(unique(values$results$Target))
+      n_cols <- input$facetCols
+      n_rows <- ceiling(n_targets / n_cols)
+      return(max(400, 300 * n_rows))
+    }
+    return(600)
+  })
   
-  # output for qcplot
   output$qcPlot <- renderPlot({
     req(values$data)
     plots <- createQCPlot(values$data, values$excluded_points)
     gridExtra::grid.arrange(plots$p1, plots$p2, ncol = 1, heights = c(2, 2))
   }, height = 800)
   
-  # results table
   output$resultsTable <- DT::renderDataTable({
     
     if (!values$analysis_run) {
@@ -1010,7 +1081,7 @@ shinyServer(function(input, output, session) {
         n_replicates
       ) %>%
       arrange(Target, Sample, Cq) %>%
-      mutate(across(where(is.numeric), round, 3))
+      mutate(across(where(is.numeric), \(x) round(x, 3)))
     
     DT::datatable(
       results_table,
@@ -1031,7 +1102,6 @@ shinyServer(function(input, output, session) {
     )
   })
   
-  # Statistical analysis output
   output$statsOutput <- renderText({
     req(values$stats_results)
     
@@ -1063,7 +1133,6 @@ shinyServer(function(input, output, session) {
     paste(output_text, collapse = "\n")
   })
   
-  # Server Part 4: Download Handlers and Utility Functions
   output$downloadAllResults <- downloadHandler(
     filename = function() {
       req(values$analysis_run)
@@ -1074,13 +1143,11 @@ shinyServer(function(input, output, session) {
       
       wb <- createWorkbook()
       
-      # 1. Raw Data Sheet
       addWorksheet(wb, "1_Raw_Data")
       writeData(wb, "1_Raw_Data", values$data %>% 
                   select(-row_id) %>%
                   arrange(Sample, Target))
       
-      # 2. Housekeeping Gene Data
       addWorksheet(wb, "2_Housekeeping_Data")
       hk_data <- values$data %>%
         filter(Target %in% values$housekeeping_genes) %>%
@@ -1094,13 +1161,11 @@ shinyServer(function(input, output, session) {
         )
       writeData(wb, "2_Housekeeping_Data", hk_data)
       
-      # 3. Analysis Results
       addWorksheet(wb, "3_Analysis_Results")
       writeData(wb, "3_Analysis_Results", values$results %>%
                   select(-row_id) %>%
                   arrange(Target, Sample))
       
-      # 4. Summary Results
       addWorksheet(wb, "4_Summary_Results")
       summary_results <- values$results %>%
         filter(!row_id %in% values$excluded_points) %>%
@@ -1118,12 +1183,10 @@ shinyServer(function(input, output, session) {
         )
       writeData(wb, "4_Summary_Results", summary_results)
       
-      # 5. Statistical Results
       addWorksheet(wb, "5_Statistical_Results")
       stat_results <- capture.output(print(values$stats_results))
       writeData(wb, "5_Statistical_Results", data.frame(Results = stat_results))
       
-      # 6. Modification History
       addWorksheet(wb, "6_Modification_History")
       if(length(values$edit_history) > 0) {
         mod_history <- do.call(rbind, lapply(values$edit_history, function(x) {
@@ -1131,11 +1194,11 @@ shinyServer(function(input, output, session) {
             Timestamp = format(x$timestamp, "%Y-%m-%d %H:%M:%S"),
             Type = x$type,
             Details = if(x$type == "edit") {
-              sprintf("Edited %s in Well %s (%s, %s) from %s to %s",
-                      x$column, x$well, x$target, x$sample, x$old_value, x$new_value)
+              sprintf("Edited %s in row %s (%s, %s) from %s to %s",
+                      x$column, x$row_num, x$target, x$sample, x$old_value, x$new_value)
             } else if(x$type == "exclusion") {
-              sprintf("Excluded point - Well %s (%s, %s, Cq=%.2f)",
-                      x$well, x$target, x$sample, x$cq)
+              sprintf("Excluded point - Row %s (%s, %s, Cq=%.2f)",
+                      x$row_num, x$target, x$sample, x$cq)
             } else {
               sprintf("Cleared %d exclusions", x$count)
             }
@@ -1146,7 +1209,6 @@ shinyServer(function(input, output, session) {
         writeData(wb, "6_Modification_History", "No modifications recorded")
       }
       
-      # 7. Analysis Parameters
       addWorksheet(wb, "7_Analysis_Parameters")
       analysis_params <- data.frame(
         Parameter = c(
@@ -1172,7 +1234,6 @@ shinyServer(function(input, output, session) {
       )
       writeData(wb, "7_Analysis_Parameters", analysis_params)
       
-      # Apply styling to all sheets
       for(sheet in names(wb)) {
         addStyle(wb, sheet, createStyle(textDecoration = "bold"), rows = 1, cols = 1:50)
         setColWidths(wb, sheet, cols = 1:50, widths = "auto")
@@ -1206,7 +1267,6 @@ shinyServer(function(input, output, session) {
     }
   )
   
-  # Utility function for error handling
   handleError <- function(expr, error_message) {
     tryCatch(
       expr,
@@ -1226,11 +1286,9 @@ shinyServer(function(input, output, session) {
     )
   }
   
-  # Enhanced data validation utility
   validateDataCompleteness <- function(data) {
     validation_messages <- character()
     
-    # Check for missing values
     missing_values <- colSums(is.na(data))
     if(any(missing_values > 0)) {
       validation_messages <- c(
@@ -1240,7 +1298,6 @@ shinyServer(function(input, output, session) {
       )
     }
     
-    # Check replicate numbers
     replicate_counts <- data %>%
       group_by(Target, Sample) %>%
       summarise(n = n(), .groups = 'drop')
@@ -1256,26 +1313,10 @@ shinyServer(function(input, output, session) {
       )
     }
     
-    # Check Cq range
     if(any(data$Cq < 0 | data$Cq > 40)) {
       validation_messages <- c(
         validation_messages,
         "Warning: Cq values outside expected range (0-40) detected"
-      )
-    }
-    
-    # Check for duplicate wells
-    duplicate_wells <- data %>%
-      group_by(Well) %>%
-      filter(n() > 1) %>%
-      pull(Well) %>%
-      unique()
-    
-    if(length(duplicate_wells) > 0) {
-      validation_messages <- c(
-        validation_messages,
-        paste("Duplicate well assignments found for wells:",
-              paste(duplicate_wells, collapse = ", "))
       )
     }
     
@@ -1334,7 +1375,6 @@ shinyServer(function(input, output, session) {
     return(p)
   }
   
-  # Utility function for formatting p-values
   formatPValue <- function(p_value) {
     case_when(
       p_value < 0.001 ~ "< 0.001",
@@ -1344,20 +1384,76 @@ shinyServer(function(input, output, session) {
     )
   }
   
-  # Add color palette utility
   addColorPalette <- function(p, palette) {
-    if(palette == "viridis") {
+    if(palette == "classic") {
+      p + scale_fill_manual(values = ggthemes::colorblind_pal()(8))
+    } else if(palette == "bw") {
+      n_groups <- length(unique(p$data$Sample))
+      if(n_groups <= 2) {
+        p + scale_fill_manual(values = c("black", "white"))
+      } else if(n_groups <= 4) {
+        p + scale_fill_manual(values = c("black", "gray40", "gray70", "white"))
+      } else {
+        grays <- gray.colors(n_groups, start = 0, end = 0.9)
+        p + scale_fill_manual(values = grays)
+      }
+    } else if(palette == "grey") {
+      p + scale_fill_grey(start = 0.3, end = 0.7)
+    } else if(palette == "viridis") {
       p + scale_fill_viridis_d()
     } else if(palette == "npg") {
       p + scale_fill_manual(values = ggsci::pal_npg()(10))
+    } else if(palette == "aaas") {
+      p + scale_fill_manual(values = ggsci::pal_aaas()(10))
+    } else if(palette == "nejm") {
+      p + scale_fill_manual(values = ggsci::pal_nejm()(8))
     } else if(palette == "lancet") {
-      p + scale_fill_manual(values = ggsci::pal_lancet()(10))
-    } else {
+      p + scale_fill_manual(values = ggsci::pal_lancet()(9))
+    } else if(palette == "jama") {
+      p + scale_fill_manual(values = ggsci::pal_jama()(7))
+    } else if(palette == "jco") {
+      p + scale_fill_manual(values = ggsci::pal_jco()(10))
+    } else if(palette == "ucscgb") {
+      p + scale_fill_manual(values = ggsci::pal_ucscgb()(10))
+    } else if(palette == "d3") {
+      p + scale_fill_manual(values = ggsci::pal_d3()(10))
+    } else if(palette == "igv") {
+      p + scale_fill_manual(values = ggsci::pal_igv()(10))
+    } else if(palette == "material") {
+      p + scale_fill_manual(values = ggsci::pal_material()(10))
+    } else if(palette == "economist") {
+      p + scale_fill_economist()
+    } else if(palette == "fivethirtyeight") {
+      p + scale_fill_fivethirtyeight()
+    } else if(palette == "tableau") {
+      p + scale_fill_tableau()
+    } else if(palette == "stata") {
+      p + scale_fill_stata()
+    } else if(palette == "excel") {
+      p + scale_fill_excel_new()
+    } else if(palette == "wsj") {
+      p + scale_fill_wsj()
+    } else if(palette == "calc") {
+      p + scale_fill_calc()
+    } else if(palette == "hc") {
+      p + scale_fill_hc()
+    } else if(palette == "pander") {
+      p + scale_fill_pander()
+    } else if(palette == "set1") {
+      p + scale_fill_brewer(palette = "Set1")
+    } else if(palette == "set2") {
+      p + scale_fill_brewer(palette = "Set2")
+    } else if(palette == "set3") {
       p + scale_fill_brewer(palette = "Set3")
+    } else if(palette == "dark2") {
+      p + scale_fill_brewer(palette = "Dark2")
+    } else if(palette == "paired") {
+      p + scale_fill_brewer(palette = "Paired")
+    } else {
+      p + scale_fill_grey(start = 0.2, end = 0.8)
     }
   }
   
-  # Session cleanup
   session$onSessionEnded(function() {
     if (exists("values")) {
       isolate({
