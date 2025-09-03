@@ -12,4 +12,8 @@ library(rsconnect)
 rsconnect::setAccountInfo(name='jdoe', token='XXXXXXXX', secret='XXXXXXXX') # change to your own token and secret
 rsconnect::deployApp("path/to/app/")
 ```
-An online version has been deployed [here](https://miana-zeng.shinyapps.io/qpcrtool/). Note that the app might be slow due to traffic.
+An online version has been deployed [https://apps.bioinfospace.com/qpcr-analysis](https://apps.bioinfospace.com/qpcr-analysis/). The app might be slow or unavailable due to traffic.
+
+Example data is included in this repo. Your data may look like this (only Sample, Target and Cq are required, others are optional):
+<img width="479" height="428" alt="image" src="https://github.com/user-attachments/assets/e4456ec5-539f-4f69-9f29-7b04809e504e" />
+
