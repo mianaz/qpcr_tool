@@ -1,0 +1,11 @@
+# Shiny Connect
+rsconnect/
+
+# DS Store files
+.DS_Store
+.DS_Store?
+*/.DS_Store
+._*
+
+# JSON files
+*.json
