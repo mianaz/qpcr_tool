@@ -9,3 +9,6 @@ rsconnect/
 
 # JSON files
 *.json
+
+# R
+.Rhistory
