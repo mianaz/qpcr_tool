@@ -2,7 +2,16 @@
 
 A comprehensive Shiny application for qPCR data analysis and visualization using the ΔΔCt method with MIQE-compliant statistical analysis.
 
-![Main Interface](screenshots/ui_interface.png)
+![Main Interface](www/screenshots/ui_interface.png)
+
+# Major Update 09/05/2025 - Fixed Statistical Methods, UI improvements  
+- Statistical analysis now run on ddCt by default. Users can choose to run on dCt/ddCt.
+- Added post-hoc tests for Kruskal-Wallis
+- Added more p adjustment methods, e.g. FDR.
+- Used "yeti" theme for a cleaner, more modern UI.
+- Added Chinese translation (UI only)! Users can now switch languages in the upper right corner.
+- Folded advanced settings for a cleaner UI.
+- Added options to visualize results in -ddCt, ddCt, -dCt and dCt.
 
 ## Features
 
@@ -23,7 +32,7 @@ A comprehensive Shiny application for qPCR data analysis and visualization using
 - **Automatic Validation**: Data format checking and error reporting
 - **Flexible Input**: Supports various column naming conventions
 
-![File Upload Interface](screenshots/file_upload.png)
+![File Upload Interface](www/screenshots/file_upload.png)
 
 ## Quick Start
 
@@ -34,17 +43,17 @@ Upload your qPCR data file containing these required columns:
 - **Cq**: Quantification cycle values (0-40)
 - **Well**: PCR well locations (optional but recommended)
 
-![Sample Data Format](screenshots/sample_data_format.png)
+![Sample Data Format](www/screenshots/sample_data_format.png)
 
 ### Step 2: Configure Settings
 Set your control sample and housekeeping genes (auto-detection available):
 
-![Essential Settings](screenshots/essential_settings.png)
+![Essential Settings](www/screenshots/essential_settings.png)
 
 ### Step 3: Review Results
 Analyze your data with comprehensive statistical analysis and publication-ready plots:
 
-![Analysis Results](screenshots/plot_results.png)
+![Analysis Results](www/screenshots/plot_results.png)
 
 ## Installation
 
@@ -93,17 +102,17 @@ The repository includes sample data files for testing:
 ### Statistical Analysis
 Configure your preferred statistical methods and significance thresholds:
 
-![Statistical Settings](screenshots/stats_settings.png)
+![Statistical Settings](www/screenshots/stats_settings.png)
 
 ### Plot Customization
 Extensive customization options for publication-ready figures:
 
-![Plot Settings](screenshots/plot_settings.png)
+![Plot Settings](www/screenshots/plot_settings.png)
 
 ### Data Tables
 Interactive tables with export functionality:
 
-![Table Results](screenshots/table_results.png)
+![Table Results](www/screenshots/table_results.png)
 
 ## Deployment
 
@@ -113,12 +122,6 @@ library(rsconnect)
 rsconnect::setAccountInfo(name='your_account', token='TOKEN', secret='SECRET')
 rsconnect::deployApp("path/to/qpcr_tool/")
 ```
-<<<<<<< HEAD
-An online version has been deployed [https://apps.bioinfospace.com/qpcr-analysis](https://apps.bioinfospace.com/qpcr-analysis/). The app might be slow or unavailable due to traffic.
-
-Example data is included in this repo. Your data may look like this (only Sample, Target and Cq are required, others are optional):
-<img width="479" height="428" alt="image" src="https://github.com/user-attachments/assets/e4456ec5-539f-4f69-9f29-7b04809e504e" />
-=======
 
 ### Online Access
 A hosted version is available at: [https://apps.bioinfospace.com/qpcr-analysis/](https://apps.bioinfospace.com/qpcr-analysis/)
@@ -169,7 +172,5 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 ## Acknowledgments
 
-This tool implements standard qPCR analysis methods following MIQE guidelines for quantitative PCR experiments. Statistical methods are based on established protocols for relative gene expression analysis. 
-Many thanks to @Emberwhirl for pointing out statistical issues in previous versions and suggestions for new features.
->>>>>>> d3966ff (Major UI/UX improvements and feature enhancements for v1.0.0)
+09/05/2025 - Many thanks to @Emberwhirl for pointing out statistical issues in previous versions and suggestions for new features.
 
