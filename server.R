@@ -18,14 +18,12 @@ library(ggbeeswarm)
 
 shinyServer(function(input, output, session) {
   
-  # Setup plot encoding function inline
+  # Set locale for proper character encoding handling across platforms
   if (Sys.info()["sysname"] == "Darwin") {
     Sys.setlocale("LC_CTYPE", "en_US.UTF-8")
   } else if (Sys.info()["sysname"] == "Windows") {
     Sys.setlocale("LC_CTYPE", "Chinese")
   }
-  
-  # Safe plot title function
   safe_plot_title <- function(text, lang) {
     if (lang == "zh") {
       return("Relative Expression Analysis")
@@ -41,6 +39,108 @@ shinyServer(function(input, output, session) {
   output$app_title <- renderText({ tr("app_title", current_language()) })
   output$analysis_tab <- renderText({ tr("analysis_tab", current_language()) })
   output$help_tab <- renderText({ tr("help_tab", current_language()) })
+  
+  # Help section outputs
+  output$help_quick_start_guide <- renderText({ tr("help_quick_start_guide", current_language()) })
+  output$help_intro_text <- renderText({ tr("help_intro_text", current_language()) })
+  output$help_step1_data_upload <- renderText({ tr("help_step1_data_upload", current_language()) })
+  output$help_step1_description <- renderText({ tr("help_step1_description", current_language()) })
+  output$help_file_upload_alt <- renderText({ tr("help_file_upload_alt", current_language()) })
+  output$help_required_columns <- renderText({ tr("help_required_columns", current_language()) })
+  output$help_column_sample <- renderText({ tr("help_column_sample", current_language()) })
+  output$help_column_target <- renderText({ tr("help_column_target", current_language()) })
+  output$help_column_cq <- renderText({ tr("help_column_cq", current_language()) })
+  output$help_column_well <- renderText({ tr("help_column_well", current_language()) })
+  output$help_sample_data_alt <- renderText({ tr("help_sample_data_alt", current_language()) })
+  output$help_step2_settings <- renderText({ tr("help_step2_settings", current_language()) })
+  output$help_step2_select_control <- renderText({ tr("help_step2_select_control", current_language()) })
+  output$help_step2_configure_hk <- renderText({ tr("help_step2_configure_hk", current_language()) })
+  output$help_step2_auto_detect <- renderText({ tr("help_step2_auto_detect", current_language()) })
+  output$help_step2_manual_select <- renderText({ tr("help_step2_manual_select", current_language()) })
+  output$help_step2_advanced <- renderText({ tr("help_step2_advanced", current_language()) })
+  output$help_essential_settings_alt <- renderText({ tr("help_essential_settings_alt", current_language()) })
+  output$help_step3_run_analysis <- renderText({ tr("help_step3_run_analysis", current_language()) })
+  output$help_step3_click_run <- renderText({ tr("help_step3_click_run", current_language()) })
+  output$help_step3_results <- renderText({ tr("help_step3_results", current_language()) })
+  output$help_analysis_results_alt <- renderText({ tr("help_analysis_results_alt", current_language()) })
+  output$help_data_analysis_process <- renderText({ tr("help_data_analysis_process", current_language()) })
+  output$help_qc_title <- renderText({ tr("help_qc_title", current_language()) })
+  output$help_qc_review_plots <- renderText({ tr("help_qc_review_plots", current_language()) })
+  output$help_qc_check_distribution <- renderText({ tr("help_qc_check_distribution", current_language()) })
+  output$help_qc_monitor_cv <- renderText({ tr("help_qc_monitor_cv", current_language()) })
+  output$help_qc_handling_outliers <- renderText({ tr("help_qc_handling_outliers", current_language()) })
+  output$help_qc_select_problematic <- renderText({ tr("help_qc_select_problematic", current_language()) })
+  output$help_qc_exclude_rows <- renderText({ tr("help_qc_exclude_rows", current_language()) })
+  output$help_qc_track_modifications <- renderText({ tr("help_qc_track_modifications", current_language()) })
+  output$help_qc_plots_alt <- renderText({ tr("help_qc_plots_alt", current_language()) })
+  output$help_analysis_settings <- renderText({ tr("help_analysis_settings", current_language()) })
+  output$help_hk_genes_title <- renderText({ tr("help_hk_genes_title", current_language()) })
+  output$help_hk_auto_detect_desc <- renderText({ tr("help_hk_auto_detect_desc", current_language()) })
+  output$help_hk_manual_selection <- renderText({ tr("help_hk_manual_selection", current_language()) })
+  output$help_hk_geometric_mean <- renderText({ tr("help_hk_geometric_mean", current_language()) })
+  output$help_hk_validation <- renderText({ tr("help_hk_validation", current_language()) })
+  output$help_statistical_analysis_title <- renderText({ tr("help_statistical_analysis_title", current_language()) })
+  output$help_stats_test_on <- renderText({ tr("help_stats_test_on", current_language()) })
+  output$help_stats_anova <- renderText({ tr("help_stats_anova", current_language()) })
+  output$help_stats_kruskal <- renderText({ tr("help_stats_kruskal", current_language()) })
+  output$help_stats_correction <- renderText({ tr("help_stats_correction", current_language()) })
+  output$help_stats_correction_methods <- renderText({ tr("help_stats_correction_methods", current_language()) })
+  output$help_stats_correction_methods2 <- renderText({ tr("help_stats_correction_methods2", current_language()) })
+  output$help_stats_threshold <- renderText({ tr("help_stats_threshold", current_language()) })
+  output$help_visualization_options <- renderText({ tr("help_visualization_options", current_language()) })
+  output$help_data_display_types <- renderText({ tr("help_data_display_types", current_language()) })
+  output$help_display_fold_change <- renderText({ tr("help_display_fold_change", current_language()) })
+  output$help_display_ddct <- renderText({ tr("help_display_ddct", current_language()) })
+  output$help_display_neg_ddct <- renderText({ tr("help_display_neg_ddct", current_language()) })
+  output$help_display_dct <- renderText({ tr("help_display_dct", current_language()) })
+  output$help_display_neg_dct <- renderText({ tr("help_display_neg_dct", current_language()) })
+  output$help_plot_types <- renderText({ tr("help_plot_types", current_language()) })
+  output$help_plot_bar <- renderText({ tr("help_plot_bar", current_language()) })
+  output$help_plot_box <- renderText({ tr("help_plot_box", current_language()) })
+  output$help_plot_violin <- renderText({ tr("help_plot_violin", current_language()) })
+  output$help_plot_beeswarm <- renderText({ tr("help_plot_beeswarm", current_language()) })
+  output$help_plot_customization_alt <- renderText({ tr("help_plot_customization_alt", current_language()) })
+  output$help_customization <- renderText({ tr("help_customization", current_language()) })
+  output$help_custom_error_bars <- renderText({ tr("help_custom_error_bars", current_language()) })
+  output$help_custom_colors <- renderText({ tr("help_custom_colors", current_language()) })
+  output$help_custom_sizes <- renderText({ tr("help_custom_sizes", current_language()) })
+  output$help_custom_sample_order <- renderText({ tr("help_custom_sample_order", current_language()) })
+  output$help_custom_significance <- renderText({ tr("help_custom_significance", current_language()) })
+  output$help_custom_export <- renderText({ tr("help_custom_export", current_language()) })
+  output$help_stats_settings_alt <- renderText({ tr("help_stats_settings_alt", current_language()) })
+  output$help_results_downloads <- renderText({ tr("help_results_downloads", current_language()) })
+  output$help_available_downloads <- renderText({ tr("help_available_downloads", current_language()) })
+  output$help_download_all_results <- renderText({ tr("help_download_all_results", current_language()) })
+  output$help_download_raw_data <- renderText({ tr("help_download_raw_data", current_language()) })
+  output$help_download_hk_analysis <- renderText({ tr("help_download_hk_analysis", current_language()) })
+  output$help_download_complete_analysis <- renderText({ tr("help_download_complete_analysis", current_language()) })
+  output$help_download_statistical_analysis <- renderText({ tr("help_download_statistical_analysis", current_language()) })
+  output$help_download_modification_history <- renderText({ tr("help_download_modification_history", current_language()) })
+  output$help_download_analysis_parameters <- renderText({ tr("help_download_analysis_parameters", current_language()) })
+  output$help_download_note <- renderText({ tr("help_download_note", current_language()) })
+  output$help_individual_tables <- renderText({ tr("help_individual_tables", current_language()) })
+  output$help_raw_data_export <- renderText({ tr("help_raw_data_export", current_language()) })
+  output$help_analysis_results_export <- renderText({ tr("help_analysis_results_export", current_language()) })
+  output$help_plots_export <- renderText({ tr("help_plots_export", current_language()) })
+  output$help_pdf_publication <- renderText({ tr("help_pdf_publication", current_language()) })
+  output$help_png_presentation <- renderText({ tr("help_png_presentation", current_language()) })
+  output$help_table_results_alt <- renderText({ tr("help_table_results_alt", current_language()) })
+  output$help_tips_troubleshooting <- renderText({ tr("help_tips_troubleshooting", current_language()) })
+  output$help_common_issues <- renderText({ tr("help_common_issues", current_language()) })
+  output$help_issue_missing_columns <- renderText({ tr("help_issue_missing_columns", current_language()) })
+  output$help_issue_no_hk_genes <- renderText({ tr("help_issue_no_hk_genes", current_language()) })
+  output$help_issue_invalid_cq <- renderText({ tr("help_issue_invalid_cq", current_language()) })
+  output$help_issue_insufficient_replicates <- renderText({ tr("help_issue_insufficient_replicates", current_language()) })
+  output$help_issue_high_cv <- renderText({ tr("help_issue_high_cv", current_language()) })
+  output$help_issue_excel_sheets <- renderText({ tr("help_issue_excel_sheets", current_language()) })
+  output$help_best_practices <- renderText({ tr("help_best_practices", current_language()) })
+  output$help_practice_review_qc <- renderText({ tr("help_practice_review_qc", current_language()) })
+  output$help_practice_document_exclusions <- renderText({ tr("help_practice_document_exclusions", current_language()) })
+  output$help_practice_geometric_mean <- renderText({ tr("help_practice_geometric_mean", current_language()) })
+  output$help_practice_ddct_statistics <- renderText({ tr("help_practice_ddct_statistics", current_language()) })
+  output$help_practice_multiple_testing <- renderText({ tr("help_practice_multiple_testing", current_language()) })
+  output$help_practice_test_assumptions <- renderText({ tr("help_practice_test_assumptions", current_language()) })
+  output$help_practice_export_complete <- renderText({ tr("help_practice_export_complete", current_language()) })
   
   output$step1_title <- renderText({ tr("step1_title", current_language()) })
   output$upload_file <- renderText({ tr("upload_file", current_language()) })
@@ -402,11 +502,22 @@ shinyServer(function(input, output, session) {
         cat("[INFO]", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "- Checking sheet:", sheet, "\n")
         
         sheet_data <- try({
-          openxlsx::read.xlsx(input$file$datapath, sheet = sheet, skipEmptyRows = TRUE, skipEmptyCols = TRUE)
+          data_temp <- openxlsx::read.xlsx(input$file$datapath, sheet = sheet, skipEmptyRows = TRUE, skipEmptyCols = TRUE)
+          
+          if(!is.null(data_temp) && any(!validUTF8(names(data_temp)))) {
+            names(data_temp) <- iconv(names(data_temp), to = "UTF-8", sub = "byte")
+          }
+          data_temp
         }, silent = TRUE)
         
         if(!inherits(sheet_data, "try-error") && !is.null(sheet_data) && nrow(sheet_data) > 0) {
-          header_text <- tolower(paste(names(sheet_data), collapse = " "))
+          # Safely create header text for pattern matching
+          tryCatch({
+            header_text <- tolower(paste(names(sheet_data), collapse = " "))
+          }, error = function(e) {
+            cat("[WARNING]", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "- Encoding issue in sheet", sheet, "header analysis\n")
+            header_text <- "sample target cq"  # Fallback for pattern matching
+          })
           
           has_required <- grepl("sample", header_text) && 
                          grepl("target", header_text) && 
@@ -445,27 +556,102 @@ shinyServer(function(input, output, session) {
     }
   })
   
+  validateFile <- function(filepath, file_ext) {
+    if(!file.exists(filepath)) {
+      return(list(valid = FALSE, error = "File does not exist"))
+    }
+    
+    if(!file.access(filepath, 4) == 0) {
+      return(list(valid = FALSE, error = "File is not readable (permission issue)"))
+    }
+    
+    file_size <- file.info(filepath)$size
+    if(is.na(file_size) || file_size == 0) {
+      return(list(valid = FALSE, error = "File is empty"))
+    }
+    
+    if(file_size > 100*1024*1024) {
+      return(list(valid = FALSE, error = "File is too large (>100MB)"))
+    }
+    if(file_ext %in% c("xlsx", "xls")) {
+      tryCatch({
+        sheets <- openxlsx::getSheetNames(filepath)
+        if(length(sheets) == 0) {
+          return(list(valid = FALSE, error = "Excel file contains no sheets"))
+        }
+      }, error = function(e) {
+        return(list(valid = FALSE, error = paste("Invalid Excel file format:", e$message)))
+      })
+    }
+    
+    return(list(valid = TRUE, error = NULL))
+  }
+  
   loadDataFromFile <- function(filepath, file_ext, sheet = NULL) {
     values$analysis_run <- FALSE
+    
+    validation <- validateFile(filepath, file_ext)
+    if(!validation$valid) {
+      showNotificationWithLog(paste("File validation failed:", validation$error), type = "error")
+      return()
+    }
 
     tryCatch({
       cat("[INFO]", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "- File type:", file_ext, "\n")
       
       if(file_ext %in% c("xlsx", "xls")) {
         if(is.null(sheet)) {
-          sheet <- 1  # Default to first sheet if not specified
+          sheet <- 1
         }
         
-        # Read with skipEmptyRows to handle files with metadata/empty rows at top
-        data <- openxlsx::read.xlsx(filepath, sheet = sheet, skipEmptyRows = TRUE, skipEmptyCols = TRUE)
+        tryCatch({
+          data <- openxlsx::read.xlsx(filepath, sheet = sheet, skipEmptyRows = TRUE, skipEmptyCols = TRUE)
+          
+          # Handle non-UTF8 characters in column names (e.g., Chinese characters)
+          if(any(!validUTF8(names(data)))) {
+            cat("[INFO]", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "- Detected non-UTF8 characters in Excel column names, converting...\n")
+            names(data) <- iconv(names(data), to = "UTF-8", sub = "byte")
+          }
+          
+          # Convert non-UTF8 data content to prevent "invalid multibyte string" errors
+          for(col in names(data)) {
+            if(is.character(data[[col]])) {
+              invalid_utf8 <- !validUTF8(data[[col]])
+              if(any(invalid_utf8, na.rm = TRUE)) {
+                cat("[INFO]", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "- Converting non-UTF8 characters in column:", col, "\n")
+                data[[col]] <- iconv(data[[col]], to = "UTF-8", sub = "byte")
+              }
+            }
+          }
+          
+        }, error = function(e) {
+          # Fallback for encoding-related Excel reading errors
+          if(grepl("multibyte", e$message) || grepl("encoding", e$message)) {
+            cat("[WARNING]", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "- Excel encoding error, trying alternative approach\n")
+            tryCatch({
+              # Temporarily change locale to handle encoding issues
+              old_locale <- Sys.getlocale("LC_CTYPE")
+              if (Sys.info()["sysname"] == "Windows") {
+                Sys.setlocale("LC_CTYPE", "C")
+              } else {
+                Sys.setlocale("LC_CTYPE", "en_US.UTF-8")
+              }
+              
+              data <- openxlsx::read.xlsx(filepath, sheet = sheet, skipEmptyRows = TRUE, skipEmptyCols = TRUE)
+              Sys.setlocale("LC_CTYPE", old_locale)
+              
+            }, error = function(e2) {
+              stop(paste("Failed to read Excel file with encoding issues:", e2$message))
+            })
+          } else {
+            stop(e)
+          }
+        })
         
         cat("[INFO]", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "- Reading Excel sheet:", sheet, "\n")
         cat("[INFO]", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "- Column names found:", paste(names(data), collapse = ", "), "\n")
         
-        # Check if the first row looks like valid headers
-        required_patterns <- c("sample", "target", "cq|ct")
         header_text <- tolower(paste(names(data), collapse = " "))
-        
         has_valid_headers <- grepl("sample", header_text) && 
                             grepl("target", header_text) && 
                             (grepl("\\bcq\\b", header_text) || grepl("\\bct\\b", header_text))
@@ -477,10 +663,34 @@ shinyServer(function(input, output, session) {
         }
         
       } else {
-        con <- file(filepath, "r")
-        all_lines <- readLines(con, warn = FALSE)
-        close(con)
+        # CSV/text file processing with encoding detection
+        # Try common encodings including Chinese (CP936, GBK, BIG5)
+        encodings_to_try <- c("UTF-8", "UTF-8-BOM", "latin1", "CP936", "GBK", "BIG5")
+        all_lines <- NULL
+        encoding_used <- NULL
         
+        # Attempt to read file with each encoding until one succeeds
+        for(enc in encodings_to_try) {
+          tryCatch({
+            con <- file(filepath, "r", encoding = enc)
+            all_lines <- readLines(con, warn = FALSE)
+            close(con)
+            encoding_used <- enc
+            cat("[INFO]", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "- Successfully read file with encoding:", enc, "\n")
+            break
+          }, error = function(e) {
+            if(exists("con") && isOpen(con)) close(con)
+            NULL
+          })
+        }
+        
+        if(is.null(all_lines)) {
+          showNotificationWithLog("Error reading file: Unable to detect proper encoding. File may be corrupted or in an unsupported format.", type = "error")
+          return()
+        }
+        
+        # Find header row in CSV/text files with flexible patterns
+        # qPCR files often have metadata before the actual data headers
         header_patterns <- c(
           "Target.*Sample.*Cq",
           "Sample.*Target.*Cq", 
@@ -494,8 +704,8 @@ shinyServer(function(input, output, session) {
           if(!is.na(header_index)) break
         }
         
+        # Fallback: look for any line containing all three required keywords
         if (is.na(header_index)) {
-          # Try to find by looking for a line with all three keywords
           for(i in 1:min(20, length(all_lines))) {
             line_upper <- toupper(all_lines[i])
             if(grepl("TARGET", line_upper) && grepl("SAMPLE", line_upper) && 
@@ -513,14 +723,38 @@ shinyServer(function(input, output, session) {
         
         data_lines <- all_lines[header_index:length(all_lines)]
         temp_file <- tempfile(fileext = ".csv")
-        writeLines(data_lines, temp_file)
+        writeLines(data_lines, temp_file, useBytes = TRUE)
         
-        data <- read.csv(temp_file, stringsAsFactors = FALSE)
+        tryCatch({
+          data <- read.csv(temp_file, stringsAsFactors = FALSE, encoding = encoding_used)
+        }, error = function(e) {
+          tryCatch({
+            data <- read.csv(temp_file, stringsAsFactors = FALSE, encoding = "UTF-8")
+            cat("[INFO]", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "- Fallback to UTF-8 encoding for CSV parsing\n")
+          }, error = function(e2) {
+            data <- read.csv(temp_file, stringsAsFactors = FALSE)
+            cat("[WARNING]", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "- Reading CSV without encoding specification\n")
+          })
+        })
       }
       
       data <- data[rowSums(is.na(data) | data == "") != ncol(data), ]
       
-      names(data) <- make.names(names(data), unique = TRUE)
+      # Handle encoding issues in column names that could cause make.names() to fail
+      tryCatch({
+        column_names <- names(data)
+        for(i in seq_along(column_names)) {
+          if(!validUTF8(column_names[i])) {
+            column_names[i] <- iconv(column_names[i], from = encoding_used %||% "UTF-8", to = "UTF-8", sub = "byte")
+          }
+        }
+        names(data) <- make.names(column_names, unique = TRUE)
+      }, error = function(e) {
+        # Fallback: create safe column names if make.names fails due to encoding
+        cat("[WARNING]", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "- Column name encoding issue, using safe fallback\n")
+        names(data) <- paste0("Col", seq_len(ncol(data)))
+        names(data)[1:min(3, ncol(data))] <- c("Sample", "Target", "Cq")[1:min(3, ncol(data))]
+      })
       
       col_mapping <- list()
       for(col in names(data)) {
@@ -611,7 +845,24 @@ shinyServer(function(input, output, session) {
     }, error = function(e) {
       cat("[ERROR]", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "- File reading error details:\n")
       print(e)
-      showNotificationWithLog(paste("Error reading file:", e$message), type = "error")
+      
+      # Provide more specific error messages based on the error type
+      error_msg <- e$message
+      if(grepl("invalid multibyte string", error_msg, ignore.case = TRUE)) {
+        detailed_msg <- "File contains characters that cannot be properly decoded. This often happens with files containing Chinese, Japanese, or other non-ASCII characters. The file may have been saved with an incompatible encoding or may be corrupted."
+      } else if(grepl("corrupt|damaged", error_msg, ignore.case = TRUE)) {
+        detailed_msg <- "File appears to be corrupted or damaged. Please check if the file can be opened in its original application."
+      } else if(grepl("permission|access", error_msg, ignore.case = TRUE)) {
+        detailed_msg <- "Cannot access the file due to permission restrictions."
+      } else if(grepl("not found|does not exist", error_msg, ignore.case = TRUE)) {
+        detailed_msg <- "File not found. Please ensure the file exists and try again."
+      } else if(grepl("format|invalid", error_msg, ignore.case = TRUE)) {
+        detailed_msg <- "File format is not supported or file structure is invalid."
+      } else {
+        detailed_msg <- paste("Unexpected error:", error_msg)
+      }
+      
+      showNotificationWithLog(paste("Error reading file:", detailed_msg), type = "error")
     })
   }
   
@@ -805,16 +1056,30 @@ shinyServer(function(input, output, session) {
       stop("No housekeeping genes selected")
     }
     
-    ref_values <- data %>%
+    # MIQE-compliant normalization: 
+    # Step 1: Calculate arithmetic mean of technical replicates for each HK gene
+    hk_means <- data %>%
       filter(Target %in% housekeeping_genes) %>%
+      group_by(Sample, Target) %>%
+      summarise(
+        mean_Cq = mean(Cq, na.rm = TRUE),
+        sd_Cq = sd(Cq, na.rm = TRUE),
+        n_replicates = n(),
+        .groups = 'drop'
+      )
+    
+    # Step 2: Calculate geometric or arithmetic mean of HK gene averages
+    # Geometric mean is preferred for multiple reference genes (MIQE recommendation)
+    ref_values <- hk_means %>%
       group_by(Sample) %>%
       summarise(
-        ref_Cq = if(input$useGeometricMean && n() > 1) {
-          exp(mean(log(Cq), na.rm = TRUE))
+        ref_Cq = if(input$useGeometricMean) {
+          exp(mean(log(mean_Cq), na.rm = TRUE))  # geometric mean
         } else {
-          mean(Cq, na.rm = TRUE)
+          mean(mean_Cq, na.rm = TRUE)            # arithmetic mean
         },
-        ref_sd = sd(Cq, na.rm = TRUE),
+        ref_sd = sd(mean_Cq, na.rm = TRUE),
+        n_hk_genes = n(),
         .groups = 'drop'
       )
     
@@ -822,6 +1087,7 @@ shinyServer(function(input, output, session) {
       stop("No valid reference values calculated")
     }
     
+    # Calculate ΔCt values (Target Cq - Reference Cq) for non-housekeeping genes
     dct_values <- data %>%
       filter(!Target %in% housekeeping_genes) %>%
       left_join(ref_values, by = "Sample") %>%
@@ -830,12 +1096,13 @@ shinyServer(function(input, output, session) {
         dCt_sd = if_else(is.na(ref_sd), 0, ref_sd)
       )
     
+    # Calculate control sample ΔCt values for ΔΔCt calculation
     control_values <- dct_values %>%
       filter(Sample == controlSample) %>%
       group_by(Target) %>%
       summarise(
         control_dCt = mean(dCt, na.rm = TRUE),
-        control_sd = sqrt(mean(dCt_sd^2, na.rm = TRUE)),
+        control_sd = sqrt(mean(dCt_sd^2, na.rm = TRUE)),  # RMS of standard deviations
         .groups = 'drop'
       )
     
@@ -843,18 +1110,19 @@ shinyServer(function(input, output, session) {
       stop("No valid control values calculated")
     }
     
+    # Calculate ΔΔCt and fold changes (2^-ΔΔCt method)
     final_results <- dct_values %>%
       left_join(control_values, by = "Target") %>%
       mutate(
-        ddCt = dCt - control_dCt,
-        individual_fold_change = 2^(-ddCt),
-        fold_change_error = sqrt(dCt_sd^2 + control_sd^2)
+        ddCt = dCt - control_dCt,                          # ΔΔCt = ΔCt - ΔCt_control
+        individual_fold_change = 2^(-ddCt),                # Fold change = 2^(-ΔΔCt)
+        fold_change_error = sqrt(dCt_sd^2 + control_sd^2)  # Error propagation
       ) %>%
       group_by(Target, Sample) %>%
       mutate(
         mean_fold_change = mean(individual_fold_change, na.rm = TRUE),
         sd_fold_change = sd(individual_fold_change, na.rm = TRUE),
-        sem_fold_change = sd_fold_change/sqrt(n()),
+        sem_fold_change = sd_fold_change/sqrt(n()),        # Standard error of mean
         n_replicates = n()
       ) %>%
       ungroup() %>%

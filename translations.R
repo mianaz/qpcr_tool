@@ -60,8 +60,8 @@ tr <- function(key, lang = "en") {
       "zh" = "检测规则"
     ),
     "geometric_mean" = list(
-      "en" = "Use geometric mean of multiple housekeeping genes (MIQE recommended)",
-      "zh" = "使用多个管家基因的几何平均值（MIQE推荐）"
+      "en" = "Use geometric mean of housekeeping gene values",
+      "zh" = "使用管家基因值的几何平均值"
     ),
     "run_analysis" = list(
       "en" = "Run Analysis",
@@ -459,6 +459,408 @@ tr <- function(key, lang = "en") {
     "memory_cleanup" = list(
       "en" = "Memory Cleanup: Data is automatically cleared from memory when sessions end",
       "zh" = "内存清理：会话结束时数据自动从内存中清除"
+    ),
+    
+    # Help section translations
+    "help_quick_start_guide" = list(
+      "en" = "Quick Start Guide",
+      "zh" = "快速入门指南"
+    ),
+    "help_intro_text" = list(
+      "en" = "This application performs qPCR data analysis using the ΔΔCt method with MIQE-compliant statistical analysis.",
+      "zh" = "本应用使用ΔΔCt方法进行qPCR数据分析，提供符合MIQE标准的统计分析。"
+    ),
+    "help_step1_data_upload" = list(
+      "en" = "Step 1: Data Upload",
+      "zh" = "步骤1：数据上传"
+    ),
+    "help_step1_description" = list(
+      "en" = "Upload your qPCR data file (CSV or Excel format).",
+      "zh" = "上传您的qPCR数据文件（CSV或Excel格式）。"
+    ),
+    "help_file_upload_alt" = list(
+      "en" = "File upload interface",
+      "zh" = "文件上传界面"
+    ),
+    "help_required_columns" = list(
+      "en" = "Required columns:",
+      "zh" = "必需列："
+    ),
+    "help_column_sample" = list(
+      "en" = "Sample: Sample identifiers",
+      "zh" = "Sample：样本标识符"
+    ),
+    "help_column_target" = list(
+      "en" = "Target: Gene names",
+      "zh" = "Target：基因名称"
+    ),
+    "help_column_cq" = list(
+      "en" = "Cq: Quantification cycle values (0-40)",
+      "zh" = "Cq：定量循环值（0-40）"
+    ),
+    "help_column_well" = list(
+      "en" = "Well: PCR well locations (optional but recommended)",
+      "zh" = "Well：PCR孔位置（可选但建议）"
+    ),
+    "help_sample_data_alt" = list(
+      "en" = "Example of properly formatted qPCR data",
+      "zh" = "正确格式的qPCR数据示例"
+    ),
+    "help_step2_settings" = list(
+      "en" = "Step 2: Configure Essential Settings",
+      "zh" = "步骤2：配置基本设置"
+    ),
+    "help_step2_select_control" = list(
+      "en" = "Select your control/reference sample",
+      "zh" = "选择您的对照/参考样本"
+    ),
+    "help_step2_configure_hk" = list(
+      "en" = "Configure housekeeping genes:",
+      "zh" = "配置管家基因："
+    ),
+    "help_step2_auto_detect" = list(
+      "en" = "Auto-detect: Uses pattern matching (e.g., GAPDH, ACTB, 18S)",
+      "zh" = "自动检测：使用模式匹配（如GAPDH、ACTB、18S）"
+    ),
+    "help_step2_manual_select" = list(
+      "en" = "Manual: Select specific genes from dropdown",
+      "zh" = "手动：从下拉菜单选择特定基因"
+    ),
+    "help_step2_advanced" = list(
+      "en" = "Advanced settings available in collapsible sections",
+      "zh" = "折叠部分提供高级设置"
+    ),
+    "help_essential_settings_alt" = list(
+      "en" = "Essential settings panel",
+      "zh" = "基本设置面板"
+    ),
+    "help_step3_run_analysis" = list(
+      "en" = "Step 3: Run Analysis",
+      "zh" = "步骤3：运行分析"
+    ),
+    "help_step3_click_run" = list(
+      "en" = "Click 'Run Analysis' to process your data.",
+      "zh" = "点击'运行分析'处理您的数据。"
+    ),
+    "help_step3_results" = list(
+      "en" = "Results include ΔCt, ΔΔCt, fold changes, and statistical comparisons.",
+      "zh" = "结果包括ΔCt、ΔΔCt、表达倍数和统计比较。"
+    ),
+    "help_analysis_results_alt" = list(
+      "en" = "Analysis results with fold change plot",
+      "zh" = "包含表达倍数图的分析结果"
+    ),
+    "help_data_analysis_process" = list(
+      "en" = "Data Analysis Process",
+      "zh" = "数据分析流程"
+    ),
+    "help_qc_title" = list(
+      "en" = "1. Data Quality Control",
+      "zh" = "1. 数据质量控制"
+    ),
+    "help_qc_review_plots" = list(
+      "en" = "Review QC plots in 'Quality Control' tab",
+      "zh" = "在'质量控制'选项卡中查看QC图"
+    ),
+    "help_qc_check_distribution" = list(
+      "en" = "Check Cq distribution across samples",
+      "zh" = "检查样本间Cq分布"
+    ),
+    "help_qc_monitor_cv" = list(
+      "en" = "Monitor CV values (red line indicates 5% threshold)",
+      "zh" = "监控CV值（红线表示5%阈值）"
+    ),
+    "help_qc_handling_outliers" = list(
+      "en" = "Handling outliers:",
+      "zh" = "处理异常值："
+    ),
+    "help_qc_select_problematic" = list(
+      "en" = "Select problematic data points in 'Raw Data' tab",
+      "zh" = "在'原始数据'选项卡中选择异常数据点"
+    ),
+    "help_qc_exclude_rows" = list(
+      "en" = "Use 'Exclude Selected Rows' to remove outliers",
+      "zh" = "使用'排除所选数据'移除异常值"
+    ),
+    "help_qc_track_modifications" = list(
+      "en" = "All modifications are tracked and included in final report",
+      "zh" = "所有修改都被跟踪并包含在最终报告中"
+    ),
+    "help_qc_plots_alt" = list(
+      "en" = "Quality control plots",
+      "zh" = "质量控制图"
+    ),
+    "help_analysis_settings" = list(
+      "en" = "2. Analysis Settings",
+      "zh" = "2. 分析设置"
+    ),
+    "help_hk_genes_title" = list(
+      "en" = "Housekeeping Genes:",
+      "zh" = "管家基因："
+    ),
+    "help_hk_auto_detect_desc" = list(
+      "en" = "Auto-detect: Uses pattern matching (customizable)",
+      "zh" = "自动检测：使用模式匹配（可定制）"
+    ),
+    "help_hk_manual_selection" = list(
+      "en" = "Manual selection: Choose specific genes from your data",
+      "zh" = "手动选择：从数据中选择特定基因"
+    ),
+    "help_hk_geometric_mean" = list(
+      "en" = "Geometric mean: MIQE-recommended for multiple housekeeping genes",
+      "zh" = "几何平均：MIQE推荐用于多个管家基因"
+    ),
+    "help_hk_validation" = list(
+      "en" = "Automatically validates housekeeping gene stability",
+      "zh" = "自动验证管家基因稳定性"
+    ),
+    "help_statistical_analysis_title" = list(
+      "en" = "Statistical Analysis:",
+      "zh" = "统计分析："
+    ),
+    "help_stats_test_on" = list(
+      "en" = "Tests performed on ΔΔCt or ΔCt values (selectable)",
+      "zh" = "对ΔΔCt或ΔCt值进行检验（可选择）"
+    ),
+    "help_stats_anova" = list(
+      "en" = "One-way ANOVA: For normally distributed data",
+      "zh" = "单因素方差分析：用于正态分布数据"
+    ),
+    "help_stats_kruskal" = list(
+      "en" = "Kruskal-Wallis: Non-parametric alternative",
+      "zh" = "Kruskal-Wallis：非参数检验替代"
+    ),
+    "help_stats_correction" = list(
+      "en" = "Multiple testing correction methods available:",
+      "zh" = "可用的多重检验校正方法："
+    ),
+    "help_stats_correction_methods" = list(
+      "en" = "Bonferroni, Holm, FDR (Benjamini-Hochberg)",
+      "zh" = "Bonferroni、Holm、FDR（Benjamini-Hochberg）"
+    ),
+    "help_stats_correction_methods2" = list(
+      "en" = "Hochberg, Hommel, Benjamini-Yekutieli",
+      "zh" = "Hochberg、Hommel、Benjamini-Yekutieli"
+    ),
+    "help_stats_threshold" = list(
+      "en" = "Customizable significance threshold",
+      "zh" = "可定制显著性阈值"
+    ),
+    "help_visualization_options" = list(
+      "en" = "3. Visualization Options",
+      "zh" = "3. 可视化选项"
+    ),
+    "help_data_display_types" = list(
+      "en" = "Data Display Types:",
+      "zh" = "数据显示类型："
+    ),
+    "help_display_fold_change" = list(
+      "en" = "Fold Change (2^-ΔΔCt): Traditional relative expression",
+      "zh" = "表达倍数（2^-ΔΔCt）：传统相对表达量"
+    ),
+    "help_display_ddct" = list(
+      "en" = "ΔΔCt Values: Log-scale normalized expression differences",
+      "zh" = "ΔΔCt值：对数尺度归一化表达差异"
+    ),
+    "help_display_neg_ddct" = list(
+      "en" = "-ΔΔCt Values: Intuitive direction (higher = more expression)",
+      "zh" = "-ΔΔCt值：直观方向（数值越高=表达量越多）"
+    ),
+    "help_display_dct" = list(
+      "en" = "ΔCt Values: Ct normalized to housekeeping genes",
+      "zh" = "ΔCt值：归一化到管家基因的Ct值"
+    ),
+    "help_display_neg_dct" = list(
+      "en" = "-ΔCt Values: Intuitive ΔCt (higher = more expression)",
+      "zh" = "-ΔCt值：直观ΔCt（数值越高=表达量越多）"
+    ),
+    "help_plot_types" = list(
+      "en" = "Plot Types:",
+      "zh" = "图表类型："
+    ),
+    "help_plot_bar" = list(
+      "en" = "Bar Plot: Shows mean with optional error bars and points",
+      "zh" = "柱状图：显示均值，可选误差条和数据点"
+    ),
+    "help_plot_box" = list(
+      "en" = "Box Plot: Displays quartiles and outliers",
+      "zh" = "箱线图：显示四分位数和异常值"
+    ),
+    "help_plot_violin" = list(
+      "en" = "Violin Plot: Shows data density distribution",
+      "zh" = "小提琴图：显示数据密度分布"
+    ),
+    "help_plot_beeswarm" = list(
+      "en" = "Beeswarm Plot: Individual points with mean indicator",
+      "zh" = "蜂群图：单个数据点带均值指示器"
+    ),
+    "help_plot_customization_alt" = list(
+      "en" = "Plot customization options",
+      "zh" = "图表自定义选项"
+    ),
+    "help_customization" = list(
+      "en" = "Customization:",
+      "zh" = "自定义："
+    ),
+    "help_custom_error_bars" = list(
+      "en" = "Error bars: SE, SD, or 95% CI",
+      "zh" = "误差条：SE、SD或95% CI"
+    ),
+    "help_custom_colors" = list(
+      "en" = "Color palettes: 13+ options including colorblind-friendly",
+      "zh" = "调色板：13+种选项包括色盲友好"
+    ),
+    "help_custom_sizes" = list(
+      "en" = "Adjustable font and point sizes",
+      "zh" = "可调整字体和点大小"
+    ),
+    "help_custom_sample_order" = list(
+      "en" = "Sample order: Drag-and-drop reordering",
+      "zh" = "样本顺序：拖放重排"
+    ),
+    "help_custom_significance" = list(
+      "en" = "Statistical significance display: Stars, p-values, or both",
+      "zh" = "统计显著性显示：星号、p值或两者"
+    ),
+    "help_custom_export" = list(
+      "en" = "Export formats: PDF (publication) or PNG (300 dpi)",
+      "zh" = "导出格式：PDF（发表用）或PNG（300 dpi）"
+    ),
+    "help_stats_settings_alt" = list(
+      "en" = "Statistical settings panel",
+      "zh" = "统计设置面板"
+    ),
+    "help_results_downloads" = list(
+      "en" = "Results and Downloads",
+      "zh" = "结果与下载"
+    ),
+    "help_available_downloads" = list(
+      "en" = "Available Downloads",
+      "zh" = "可用下载"
+    ),
+    "help_download_all_results" = list(
+      "en" = "Download All Results:",
+      "zh" = "下载所有结果："
+    ),
+    "help_download_raw_data" = list(
+      "en" = "Raw Data",
+      "zh" = "原始数据"
+    ),
+    "help_download_hk_analysis" = list(
+      "en" = "Housekeeping Gene Analysis",
+      "zh" = "管家基因分析"
+    ),
+    "help_download_complete_analysis" = list(
+      "en" = "Complete Analysis Results",
+      "zh" = "完整分析结果"
+    ),
+    "help_download_statistical_analysis" = list(
+      "en" = "Statistical Analysis",
+      "zh" = "统计分析"
+    ),
+    "help_download_modification_history" = list(
+      "en" = "Modification History",
+      "zh" = "修改历史"
+    ),
+    "help_download_analysis_parameters" = list(
+      "en" = "Analysis Parameters",
+      "zh" = "分析参数"
+    ),
+    "help_download_note" = list(
+      "en" = "Note: 'Download All Results' is only available after running analysis",
+      "zh" = "注意：'下载所有结果'仅在运行分析后可用"
+    ),
+    "help_individual_tables" = list(
+      "en" = "Individual Tables:",
+      "zh" = "单独表格："
+    ),
+    "help_raw_data_export" = list(
+      "en" = "Raw data table: Copy, CSV, or Excel export options",
+      "zh" = "原始数据表：复制、CSV或Excel导出选项"
+    ),
+    "help_analysis_results_export" = list(
+      "en" = "Analysis results: Copy, CSV, or Excel export options",
+      "zh" = "分析结果：复制、CSV或Excel导出选项"
+    ),
+    "help_plots_export" = list(
+      "en" = "Plots:",
+      "zh" = "图表："
+    ),
+    "help_pdf_publication" = list(
+      "en" = "PDF: Best for publication",
+      "zh" = "PDF：最适合发表"
+    ),
+    "help_png_presentation" = list(
+      "en" = "PNG: High resolution (300 dpi) for presentations",
+      "zh" = "PNG：高分辨率（300 dpi）适合演示"
+    ),
+    "help_table_results_alt" = list(
+      "en" = "Data results table with export options",
+      "zh" = "带导出选项的数据结果表"
+    ),
+    "help_tips_troubleshooting" = list(
+      "en" = "Tips and Troubleshooting",
+      "zh" = "提示与故障排除"
+    ),
+    "help_common_issues" = list(
+      "en" = "Common Issues:",
+      "zh" = "常见问题："
+    ),
+    "help_issue_missing_columns" = list(
+      "en" = "Missing or incorrectly named columns in data file",
+      "zh" = "数据文件中缺少或错误命名的列"
+    ),
+    "help_issue_no_hk_genes" = list(
+      "en" = "No housekeeping genes detected/selected",
+      "zh" = "未检测到/选择管家基因"
+    ),
+    "help_issue_invalid_cq" = list(
+      "en" = "Invalid Cq values (should be between 0-40)",
+      "zh" = "无效Cq值（应在0-40之间）"
+    ),
+    "help_issue_insufficient_replicates" = list(
+      "en" = "Insufficient replicates (minimum 2 recommended)",
+      "zh" = "重复不足（建议最少2个）"
+    ),
+    "help_issue_high_cv" = list(
+      "en" = "High CV values (>5%) indicating poor replicate consistency",
+      "zh" = "高CV值（>5%）表示重复一致性差"
+    ),
+    "help_issue_excel_sheets" = list(
+      "en" = "Excel files: Ensure data is in the first sheet or select correct sheet",
+      "zh" = "Excel文件：确保数据在第一个工作表或选择正确工作表"
+    ),
+    "help_best_practices" = list(
+      "en" = "Best Practices",
+      "zh" = "最佳实践"
+    ),
+    "help_practice_review_qc" = list(
+      "en" = "Always review QC plots before proceeding with analysis",
+      "zh" = "分析前始终检查QC图"
+    ),
+    "help_practice_document_exclusions" = list(
+      "en" = "Document reasons for excluding data points",
+      "zh" = "记录排除数据点的原因"
+    ),
+    "help_practice_geometric_mean" = list(
+      "en" = "Use geometric mean of multiple housekeeping genes (MIQE guideline)",
+      "zh" = "使用多个管家基因的几何平均（MIQE指南）"
+    ),
+    "help_practice_ddct_statistics" = list(
+      "en" = "Perform statistics on ΔΔCt values for proper normalization",
+      "zh" = "对ΔΔCt值进行统计以正确归一化"
+    ),
+    "help_practice_multiple_testing" = list(
+      "en" = "Apply multiple testing correction for many comparisons",
+      "zh" = "对多重比较应用多重检验校正"
+    ),
+    "help_practice_test_assumptions" = list(
+      "en" = "Consider test assumptions: ANOVA for normal data, Kruskal-Wallis otherwise",
+      "zh" = "考虑检验假设：正态数据用ANOVA，否则用Kruskal-Wallis"
+    ),
+    "help_practice_export_complete" = list(
+      "en" = "Export complete results including all parameters and modifications",
+      "zh" = "导出包含所有参数和修改的完整结果"
     )
   )
   

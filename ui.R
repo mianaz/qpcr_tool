@@ -424,61 +424,61 @@ shinyUI(fluidPage(
                     
                     # Main help content
                     div(class = "help-section",
-                        h2(class = "help-title", "Quick Start Guide"),
-                        p("This application performs qPCR data analysis using the ΔΔCt method with MIQE-compliant statistical analysis."),
+                        h2(class = "help-title", textOutput("help_quick_start_guide", inline = TRUE)),
+                        p(textOutput("help_intro_text", inline = TRUE)),
                         
                         tags$ol(
-                          tags$li(strong("Step 1: Data Upload"), 
-                                  p("Upload your qPCR data file (CSV or Excel format)."),
+                          tags$li(strong(textOutput("help_step1_data_upload", inline = TRUE)), 
+                                  p(textOutput("help_step1_description", inline = TRUE)),
                                   # File upload interface screenshot
                                   div(style = "text-align: center; margin: 15px 0;",
                                       tags$img(src = "screenshots/file_upload.png", 
-                                              alt = "File upload interface",
+                                              alt = textOutput("help_file_upload_alt", inline = TRUE),
                                               class = "help-image")
                                   ),
                                   div(class = "note-box",
-                                      "Required columns:",
+                                      textOutput("help_required_columns", inline = TRUE),
                                       tags$ul(
-                                        tags$li("Sample: Sample identifiers"),
-                                        tags$li("Target: Gene names"),
-                                        tags$li("Cq: Quantification cycle values (0-40)"),
-                                        tags$li("Well: PCR well locations (optional but recommended)")
+                                        tags$li(textOutput("help_column_sample", inline = TRUE)),
+                                        tags$li(textOutput("help_column_target", inline = TRUE)),
+                                        tags$li(textOutput("help_column_cq", inline = TRUE)),
+                                        tags$li(textOutput("help_column_well", inline = TRUE))
                                       )
                                   ),
                                   # Example of properly formatted data screenshot
                                   div(style = "text-align: center; margin: 15px 0;",
                                       tags$img(src = "screenshots/sample_data_format.png", 
-                                              alt = "Example of properly formatted qPCR data",
+                                              alt = textOutput("help_sample_data_alt", inline = TRUE),
                                               class = "help-image")
                                   )
                           ),
                           
-                          tags$li(strong("Step 2: Configure Essential Settings"), 
+                          tags$li(strong(textOutput("help_step2_settings", inline = TRUE)), 
                                   tags$ul(
-                                    tags$li("Select your control/reference sample"),
-                                    tags$li("Configure housekeeping genes:",
+                                    tags$li(textOutput("help_step2_select_control", inline = TRUE)),
+                                    tags$li(textOutput("help_step2_configure_hk", inline = TRUE),
                                             tags$ul(
-                                              tags$li("Auto-detect: Uses pattern matching (e.g., GAPDH, ACTB, 18S)"),
-                                              tags$li("Manual: Select specific genes from dropdown")
+                                              tags$li(textOutput("help_step2_auto_detect", inline = TRUE)),
+                                              tags$li(textOutput("help_step2_manual_select", inline = TRUE))
                                             )
                                     ),
-                                    tags$li("Advanced settings available in collapsible sections")
+                                    tags$li(textOutput("help_step2_advanced", inline = TRUE))
                                   ),
                                   # Essential settings panel screenshot
                                   div(style = "text-align: center; margin: 15px 0;",
                                       tags$img(src = "screenshots/essential_settings.png", 
-                                              alt = "Essential settings panel",
+                                              alt = textOutput("help_essential_settings_alt", inline = TRUE),
                                               class = "help-image")
                                   )
                           ),
                           
-                          tags$li(strong("Step 3: Run Analysis"), 
-                                  p("Click 'Run Analysis' to process your data."),
-                                  p("Results include ΔCt, ΔΔCt, fold changes, and statistical comparisons."),
+                          tags$li(strong(textOutput("help_step3_run_analysis", inline = TRUE)), 
+                                  p(textOutput("help_step3_click_run", inline = TRUE)),
+                                  p(textOutput("help_step3_results", inline = TRUE)),
                                   # Analysis results screenshot
                                   div(style = "text-align: center; margin: 15px 0;",
                                       tags$img(src = "screenshots/plot_results.png", 
-                                              alt = "Analysis results with fold change plot",
+                                              alt = textOutput("help_analysis_results_alt", inline = TRUE),
                                               class = "help-image")
                                   )
                           )
@@ -486,133 +486,133 @@ shinyUI(fluidPage(
                     ),
                     
                     div(class = "help-section",
-                        h2(class = "help-title", "Data Analysis Process"),
+                        h2(class = "help-title", textOutput("help_data_analysis_process", inline = TRUE)),
                         
-                        h3(class = "help-subtitle", "1. Data Quality Control"),
+                        h3(class = "help-subtitle", textOutput("help_qc_title", inline = TRUE)),
                         tags$ul(
-                          tags$li("Review QC plots in 'Quality Control' tab"),
-                          tags$li("Check Cq distribution across samples"),
-                          tags$li("Monitor CV values (red line indicates 5% threshold)"),
-                          tags$li(strong("Handling outliers:"),
+                          tags$li(textOutput("help_qc_review_plots", inline = TRUE)),
+                          tags$li(textOutput("help_qc_check_distribution", inline = TRUE)),
+                          tags$li(textOutput("help_qc_monitor_cv", inline = TRUE)),
+                          tags$li(strong(textOutput("help_qc_handling_outliers", inline = TRUE)),
                                   tags$ul(
-                                    tags$li("Select problematic data points in 'Raw Data' tab"),
-                                    tags$li("Use 'Exclude Selected Rows' to remove outliers"),
-                                    tags$li("All modifications are tracked and included in final report")
+                                    tags$li(textOutput("help_qc_select_problematic", inline = TRUE)),
+                                    tags$li(textOutput("help_qc_exclude_rows", inline = TRUE)),
+                                    tags$li(textOutput("help_qc_track_modifications", inline = TRUE))
                                   )
                           )
                         ),
                         # Quality control plots screenshot
                         div(style = "text-align: center; margin: 15px 0;",
                             tags$img(src = "screenshots/stats_results.png", 
-                                    alt = "Quality control plots",
+                                    alt = textOutput("help_qc_plots_alt", inline = TRUE),
                                     class = "help-image")
                         ),
                         
-                        h3(class = "help-subtitle", "2. Analysis Settings"),
+                        h3(class = "help-subtitle", textOutput("help_analysis_settings", inline = TRUE)),
                         tags$ul(
-                          tags$li(strong("Housekeeping Genes:"),
+                          tags$li(strong(textOutput("help_hk_genes_title", inline = TRUE)),
                                   tags$ul(
-                                    tags$li("Auto-detect: Uses pattern matching (customizable)"),
-                                    tags$li("Manual selection: Choose specific genes from your data"),
-                                    tags$li("Geometric mean: MIQE-recommended for multiple housekeeping genes"),
-                                    tags$li("Automatically validates housekeeping gene stability")
+                                    tags$li(textOutput("help_hk_auto_detect_desc", inline = TRUE)),
+                                    tags$li(textOutput("help_hk_manual_selection", inline = TRUE)),
+                                    tags$li(textOutput("help_hk_geometric_mean", inline = TRUE)),
+                                    tags$li(textOutput("help_hk_validation", inline = TRUE))
                                   )
                           ),
-                          tags$li(strong("Statistical Analysis:"),
+                          tags$li(strong(textOutput("help_statistical_analysis_title", inline = TRUE)),
                                   tags$ul(
-                                    tags$li("Tests performed on ΔΔCt or ΔCt values (selectable)"),
-                                    tags$li("One-way ANOVA: For normally distributed data"),
-                                    tags$li("Kruskal-Wallis: Non-parametric alternative"),
-                                    tags$li("Multiple testing correction methods available:",
+                                    tags$li(textOutput("help_stats_test_on", inline = TRUE)),
+                                    tags$li(textOutput("help_stats_anova", inline = TRUE)),
+                                    tags$li(textOutput("help_stats_kruskal", inline = TRUE)),
+                                    tags$li(textOutput("help_stats_correction", inline = TRUE),
                                             tags$ul(
-                                              tags$li("Bonferroni, Holm, FDR (Benjamini-Hochberg)"),
-                                              tags$li("Hochberg, Hommel, Benjamini-Yekutieli")
+                                              tags$li(textOutput("help_stats_correction_methods", inline = TRUE)),
+                                              tags$li(textOutput("help_stats_correction_methods2", inline = TRUE))
                                             )
                                     ),
-                                    tags$li("Customizable significance threshold")
+                                    tags$li(textOutput("help_stats_threshold", inline = TRUE))
                                   )
                           )
                         ),
                         
-                        h3(class = "help-subtitle", "3. Visualization Options"),
+                        h3(class = "help-subtitle", textOutput("help_visualization_options", inline = TRUE)),
                         tags$ul(
-                          tags$li(strong("Data Display Types:"),
+                          tags$li(strong(textOutput("help_data_display_types", inline = TRUE)),
                                   tags$ul(
-                                    tags$li("Fold Change (2^-ΔΔCt): Traditional relative expression"),
-                                    tags$li("ΔΔCt Values: Log-scale normalized expression differences"),
-                                    tags$li("-ΔΔCt Values: Intuitive direction (higher = more expression)"),
-                                    tags$li("ΔCt Values: Ct normalized to housekeeping genes"),
-                                    tags$li("-ΔCt Values: Intuitive ΔCt (higher = more expression)")
+                                    tags$li(textOutput("help_display_fold_change", inline = TRUE)),
+                                    tags$li(textOutput("help_display_ddct", inline = TRUE)),
+                                    tags$li(textOutput("help_display_neg_ddct", inline = TRUE)),
+                                    tags$li(textOutput("help_display_dct", inline = TRUE)),
+                                    tags$li(textOutput("help_display_neg_dct", inline = TRUE))
                                   )
                           ),
-                          tags$li(strong("Plot Types:"),
+                          tags$li(strong(textOutput("help_plot_types", inline = TRUE)),
                                   tags$ul(
-                                    tags$li("Bar Plot: Shows mean with optional error bars and points"),
-                                    tags$li("Box Plot: Displays quartiles and outliers"),
-                                    tags$li("Violin Plot: Shows data density distribution"),
-                                    tags$li("Beeswarm Plot: Individual points with mean indicator")
+                                    tags$li(textOutput("help_plot_bar", inline = TRUE)),
+                                    tags$li(textOutput("help_plot_box", inline = TRUE)),
+                                    tags$li(textOutput("help_plot_violin", inline = TRUE)),
+                                    tags$li(textOutput("help_plot_beeswarm", inline = TRUE))
                                   )
                           ),
                           # Different plot types screenshot
                           div(style = "text-align: center; margin: 15px 0;",
                               tags$img(src = "screenshots/plot_settings.png", 
-                                      alt = "Plot customization options",
+                                      alt = textOutput("help_plot_customization_alt", inline = TRUE),
                                       class = "help-image")
                           ),
-                          tags$li(strong("Customization:"),
+                          tags$li(strong(textOutput("help_customization", inline = TRUE)),
                                   tags$ul(
-                                    tags$li("Error bars: SE, SD, or 95% CI"),
-                                    tags$li("Color palettes: 13+ options including colorblind-friendly"),
-                                    tags$li("Adjustable font and point sizes"),
-                                    tags$li("Sample order: Drag-and-drop reordering"),
-                                    tags$li("Statistical significance display: Stars, p-values, or both"),
-                                    tags$li("Export formats: PDF (publication) or PNG (300 dpi)")
+                                    tags$li(textOutput("help_custom_error_bars", inline = TRUE)),
+                                    tags$li(textOutput("help_custom_colors", inline = TRUE)),
+                                    tags$li(textOutput("help_custom_sizes", inline = TRUE)),
+                                    tags$li(textOutput("help_custom_sample_order", inline = TRUE)),
+                                    tags$li(textOutput("help_custom_significance", inline = TRUE)),
+                                    tags$li(textOutput("help_custom_export", inline = TRUE))
                                   )
                           )
                         ),
                         # Plot customization panel screenshot
                         div(style = "text-align: center; margin: 15px 0;",
                             tags$img(src = "screenshots/stats_settings.png", 
-                                    alt = "Statistical settings panel",
+                                    alt = textOutput("help_stats_settings_alt", inline = TRUE),
                                     class = "help-image")
                         )
                     ),
                     
                     div(class = "help-section",
-                        h2(class = "help-title", "Results and Downloads"),
+                        h2(class = "help-title", textOutput("help_results_downloads", inline = TRUE)),
                         
-                        h3(class = "help-subtitle", "Available Downloads"),
+                        h3(class = "help-subtitle", textOutput("help_available_downloads", inline = TRUE)),
                         tags$ul(
-                          tags$li(strong("Download All Results:"),
+                          tags$li(strong(textOutput("help_download_all_results", inline = TRUE)),
                                   tags$ul(
-                                    tags$li("Raw Data"),
-                                    tags$li("Housekeeping Gene Analysis"),
-                                    tags$li("Complete Analysis Results"),
-                                    tags$li("Statistical Analysis"),
-                                    tags$li("Modification History"),
-                                    tags$li("Analysis Parameters")
+                                    tags$li(textOutput("help_download_raw_data", inline = TRUE)),
+                                    tags$li(textOutput("help_download_hk_analysis", inline = TRUE)),
+                                    tags$li(textOutput("help_download_complete_analysis", inline = TRUE)),
+                                    tags$li(textOutput("help_download_statistical_analysis", inline = TRUE)),
+                                    tags$li(textOutput("help_download_modification_history", inline = TRUE)),
+                                    tags$li(textOutput("help_download_analysis_parameters", inline = TRUE))
                                   ),
                                   div(class = "note-box",
-                                      "Note: 'Download All Results' is only available after running analysis"
+                                      textOutput("help_download_note", inline = TRUE)
                                   )
                           ),
-                          tags$li(strong("Individual Tables:"),
+                          tags$li(strong(textOutput("help_individual_tables", inline = TRUE)),
                                   tags$ul(
-                                    tags$li("Raw data table: Copy, CSV, or Excel export options"),
-                                    tags$li("Analysis results: Copy, CSV, or Excel export options")
+                                    tags$li(textOutput("help_raw_data_export", inline = TRUE)),
+                                    tags$li(textOutput("help_analysis_results_export", inline = TRUE))
                                   )
                           ),
-                          tags$li(strong("Plots:"),
+                          tags$li(strong(textOutput("help_plots_export", inline = TRUE)),
                                   tags$ul(
-                                    tags$li("PDF: Best for publication"),
-                                    tags$li("PNG: High resolution (300 dpi) for presentations")
+                                    tags$li(textOutput("help_pdf_publication", inline = TRUE)),
+                                    tags$li(textOutput("help_png_presentation", inline = TRUE))
                                   )
                           )
                         ),
                         # Data results table screenshot
                         div(style = "text-align: center; margin: 15px 0;",
                             tags$img(src = "screenshots/table_results.png", 
-                                    alt = "Data results table with export options",
+                                    alt = textOutput("help_table_results_alt", inline = TRUE),
                                     class = "help-image")
                         )
                     ),
@@ -642,29 +642,29 @@ shinyUI(fluidPage(
                     ),
                     
                     div(class = "help-section",
-                        h2(class = "help-title", "Tips and Troubleshooting"),
+                        h2(class = "help-title", textOutput("help_tips_troubleshooting", inline = TRUE)),
                         
                         div(class = "warning-box",
-                            h4("Common Issues:"),
+                            h4(textOutput("help_common_issues", inline = TRUE)),
                             tags$ul(
-                              tags$li("Missing or incorrectly named columns in data file"),
-                              tags$li("No housekeeping genes detected/selected"),
-                              tags$li("Invalid Cq values (should be between 0-40)"),
-                              tags$li("Insufficient replicates (minimum 2 recommended)"),
-                              tags$li("High CV values (>5%) indicating poor replicate consistency"),
-                              tags$li("Excel files: Ensure data is in the first sheet or select correct sheet")
+                              tags$li(textOutput("help_issue_missing_columns", inline = TRUE)),
+                              tags$li(textOutput("help_issue_no_hk_genes", inline = TRUE)),
+                              tags$li(textOutput("help_issue_invalid_cq", inline = TRUE)),
+                              tags$li(textOutput("help_issue_insufficient_replicates", inline = TRUE)),
+                              tags$li(textOutput("help_issue_high_cv", inline = TRUE)),
+                              tags$li(textOutput("help_issue_excel_sheets", inline = TRUE))
                             )
                         ),
                         
-                        h3(class = "help-subtitle", "Best Practices"),
+                        h3(class = "help-subtitle", textOutput("help_best_practices", inline = TRUE)),
                         tags$ul(
-                          tags$li("Always review QC plots before proceeding with analysis"),
-                          tags$li("Document reasons for excluding data points"),
-                          tags$li("Use geometric mean of multiple housekeeping genes (MIQE guideline)"),
-                          tags$li("Perform statistics on ΔΔCt values for proper normalization"),
-                          tags$li("Apply multiple testing correction for many comparisons"),
-                          tags$li("Consider test assumptions: ANOVA for normal data, Kruskal-Wallis otherwise"),
-                          tags$li("Export complete results including all parameters and modifications")
+                          tags$li(textOutput("help_practice_review_qc", inline = TRUE)),
+                          tags$li(textOutput("help_practice_document_exclusions", inline = TRUE)),
+                          tags$li(textOutput("help_practice_geometric_mean", inline = TRUE)),
+                          tags$li(textOutput("help_practice_ddct_statistics", inline = TRUE)),
+                          tags$li(textOutput("help_practice_multiple_testing", inline = TRUE)),
+                          tags$li(textOutput("help_practice_test_assumptions", inline = TRUE)),
+                          tags$li(textOutput("help_practice_export_complete", inline = TRUE))
                         )
                     )
              )
