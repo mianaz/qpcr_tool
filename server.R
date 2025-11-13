@@ -2105,14 +2105,32 @@ shinyServer(function(input, output, session) {
         y_position <- max_y * 1.05  # Start just above the highest point
         
         if(result$test == "ANOVA" && !is.null(result$posthoc)) {
+          all_samples <- as.character(unique(target_data$Sample))
+
           control_comparisons <- result$posthoc %>%
-            filter(grepl(input$controlSample, comparison)) %>%
+            rowwise() %>%
+            mutate(
+              # Parse comparison by checking if control is at start or end with valid sample name
+              other_sample = {
+                result_val <- NA_character_
+                # Try: control at end
+                if(endsWith(comparison, paste0("-", input$controlSample))) {
+                  candidate = substr(comparison, 1, nchar(comparison) - nchar(input$controlSample) - 1)
+                  if(candidate %in% all_samples) result_val <- candidate
+                }
+                # Try: control at start
+                if(is.na(result_val) && startsWith(comparison, paste0(input$controlSample, "-"))) {
+                  candidate = substr(comparison, nchar(input$controlSample) + 2, nchar(comparison))
+                  if(candidate %in% all_samples) result_val <- candidate
+                }
+                result_val
+              }
+            ) %>%
+            ungroup() %>%
+            filter(!is.na(other_sample)) %>%
             mutate(
               group1 = input$controlSample,
-              # Remove control sample from ONLY the beginning or end of comparison string
-              # TukeyHSD format is "Sample2-Sample1", so control can be at start or end
-              group2 = sub(paste0("^", input$controlSample, "-"), "", comparison),
-              group2 = sub(paste0("-", input$controlSample, "$"), "", group2),
+              group2 = other_sample,
               annotation = case_when(
                 input$significanceType == "stars" ~ stars,
                 input$significanceType == "p.value" ~ sprintf("p=%.3f", `p adj`),
