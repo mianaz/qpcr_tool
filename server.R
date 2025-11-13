@@ -2109,7 +2109,10 @@ shinyServer(function(input, output, session) {
             filter(grepl(input$controlSample, comparison)) %>%
             mutate(
               group1 = input$controlSample,
-              group2 = gsub(paste0(input$controlSample, "-|\\-", input$controlSample), "", comparison),
+              # Remove control sample from ONLY the beginning or end of comparison string
+              # TukeyHSD format is "Sample2-Sample1", so control can be at start or end
+              group2 = sub(paste0("^", input$controlSample, "-"), "", comparison),
+              group2 = sub(paste0("-", input$controlSample, "$"), "", group2),
               annotation = case_when(
                 input$significanceType == "stars" ~ stars,
                 input$significanceType == "p.value" ~ sprintf("p=%.3f", `p adj`),
@@ -2158,12 +2161,25 @@ shinyServer(function(input, output, session) {
       TRUE ~ sprintf("%.3f", p_value)
     )
   }
-  
+
+  # Helper function to expand a palette to the required number of colors
+  expandPalette <- function(base_colors, n_needed) {
+    if(n_needed <= length(base_colors)) {
+      return(base_colors[1:n_needed])
+    } else {
+      # Recycle colors if more are needed
+      return(rep(base_colors, length.out = n_needed))
+    }
+  }
+
   addColorPalette <- function(p, palette) {
+    # Get the number of groups/categories in the data
+    n_groups <- length(unique(p$data$Sample))
+
     if(palette == "classic") {
-      p + scale_fill_manual(values = ggthemes::colorblind_pal()(8))
+      colors <- expandPalette(ggthemes::colorblind_pal()(8), n_groups)
+      p + scale_fill_manual(values = colors)
     } else if(palette == "bw") {
-      n_groups <- length(unique(p$data$Sample))
       if(n_groups <= 2) {
         p + scale_fill_manual(values = c("black", "white"))
       } else if(n_groups <= 4) {
@@ -2177,25 +2193,35 @@ shinyServer(function(input, output, session) {
     } else if(palette == "viridis") {
       p + scale_fill_viridis_d()
     } else if(palette == "npg") {
-      p + scale_fill_manual(values = ggsci::pal_npg()(10))
+      colors <- expandPalette(ggsci::pal_npg()(10), n_groups)
+      p + scale_fill_manual(values = colors)
     } else if(palette == "aaas") {
-      p + scale_fill_manual(values = ggsci::pal_aaas()(10))
+      colors <- expandPalette(ggsci::pal_aaas()(10), n_groups)
+      p + scale_fill_manual(values = colors)
     } else if(palette == "nejm") {
-      p + scale_fill_manual(values = ggsci::pal_nejm()(8))
+      colors <- expandPalette(ggsci::pal_nejm()(8), n_groups)
+      p + scale_fill_manual(values = colors)
     } else if(palette == "lancet") {
-      p + scale_fill_manual(values = ggsci::pal_lancet()(9))
+      colors <- expandPalette(ggsci::pal_lancet()(9), n_groups)
+      p + scale_fill_manual(values = colors)
     } else if(palette == "jama") {
-      p + scale_fill_manual(values = ggsci::pal_jama()(7))
+      colors <- expandPalette(ggsci::pal_jama()(7), n_groups)
+      p + scale_fill_manual(values = colors)
     } else if(palette == "jco") {
-      p + scale_fill_manual(values = ggsci::pal_jco()(10))
+      colors <- expandPalette(ggsci::pal_jco()(10), n_groups)
+      p + scale_fill_manual(values = colors)
     } else if(palette == "ucscgb") {
-      p + scale_fill_manual(values = ggsci::pal_ucscgb()(10))
+      colors <- expandPalette(ggsci::pal_ucscgb()(10), n_groups)
+      p + scale_fill_manual(values = colors)
     } else if(palette == "d3") {
-      p + scale_fill_manual(values = ggsci::pal_d3()(10))
+      colors <- expandPalette(ggsci::pal_d3()(10), n_groups)
+      p + scale_fill_manual(values = colors)
     } else if(palette == "igv") {
-      p + scale_fill_manual(values = ggsci::pal_igv()(10))
+      colors <- expandPalette(ggsci::pal_igv()(10), n_groups)
+      p + scale_fill_manual(values = colors)
     } else if(palette == "material") {
-      p + scale_fill_manual(values = ggsci::pal_material()(10))
+      colors <- expandPalette(ggsci::pal_material()(10), n_groups)
+      p + scale_fill_manual(values = colors)
     } else if(palette == "economist") {
       p + scale_fill_economist()
     } else if(palette == "fivethirtyeight") {
