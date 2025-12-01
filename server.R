@@ -153,6 +153,15 @@ shinyServer(function(input, output, session) {
   output$advanced_hk_settings <- renderText({ tr("advanced_hk_settings", current_language()) })
   output$detection_pattern <- renderText({ tr("detection_pattern", current_language()) })
   output$geometric_mean <- renderText({ tr("geometric_mean", current_language()) })
+
+  # PCR Efficiency outputs
+  output$efficiency_settings <- renderText({ tr("efficiency_settings", current_language()) })
+  output$use_efficiency_correction <- renderText({ tr("use_efficiency_correction", current_language()) })
+  output$efficiency_input_method <- renderText({ tr("efficiency_input_method", current_language()) })
+  output$efficiency_help <- renderText({ tr("efficiency_help", current_language()) })
+  output$upload_std_curve <- renderText({ tr("upload_std_curve", current_language()) })
+  output$calculate_efficiency <- renderText({ tr("calculate_efficiency", current_language()) })
+
   output$run_analysis <- renderText({ tr("run_analysis", current_language()) })
   
   output$statistical_settings <- renderText({ tr("statistical_settings", current_language()) })
@@ -356,7 +365,11 @@ shinyServer(function(input, output, session) {
     edit_history=list(),
     analysis_run = FALSE,
     excel_sheets = NULL,
-    selected_sheet = NULL
+    selected_sheet = NULL,
+    # PCR Efficiency values (MIQE 2.0)
+    efficiencies = list(),  # Named list: target -> efficiency value (as E, e.g., 2.0 for 100%)
+    std_curve_data = NULL,
+    std_curve_sheets = NULL
   )
   
   output$analysisMessage <- renderUI({
@@ -387,11 +400,17 @@ shinyServer(function(input, output, session) {
         return()
       }
       
+      # Get efficiency values if correction is enabled (MIQE 2.0)
+      use_eff_correction <- isTRUE(input$useEfficiencyCorrection)
+      eff_values <- if (use_eff_correction) getEfficiencyValues() else NULL
+
       results <- try({
         calculateFoldChanges(
           data = analysis_data,
           controlSample = input$controlSample,
-          housekeeping_genes = values$housekeeping_genes
+          housekeeping_genes = values$housekeeping_genes,
+          efficiencies = eff_values,
+          use_efficiency_correction = use_eff_correction
         )
       }, silent = TRUE)
       
@@ -865,7 +884,213 @@ shinyServer(function(input, output, session) {
       showNotificationWithLog(paste("Error reading file:", detailed_msg), type = "error")
     })
   }
-  
+
+  # ============================================================
+  # PCR Efficiency UI and Calculations (MIQE 2.0 compliance)
+  # ============================================================
+
+  # Generate efficiency input fields for each target gene
+  output$efficiencyInputsUI <- renderUI({
+    req(values$data)
+    targets <- unique(values$data$Target)
+
+    # Create numeric input for each target
+    efficiency_inputs <- lapply(targets, function(target) {
+      input_id <- paste0("efficiency_", gsub("[^a-zA-Z0-9]", "_", target))
+      div(
+        style = "margin-bottom: 8px;",
+        fluidRow(
+          column(6, tags$label(target, style = "font-weight: normal; margin-top: 7px;")),
+          column(6, numericInput(
+            inputId = input_id,
+            label = NULL,
+            value = 100,
+            min = 50,
+            max = 150,
+            step = 0.1,
+            width = "100%"
+          ))
+        )
+      )
+    })
+
+    tagList(
+      tags$label(paste(tr("efficiency_for_target", current_language()), "(%):")),
+      efficiency_inputs
+    )
+  })
+
+  # Collect efficiency values from inputs
+  getEfficiencyValues <- reactive({
+    req(values$data)
+    targets <- unique(values$data$Target)
+
+    efficiencies <- list()
+    for (target in targets) {
+      input_id <- paste0("efficiency_", gsub("[^a-zA-Z0-9]", "_", target))
+      eff_percent <- input[[input_id]]
+      if (is.null(eff_percent) || is.na(eff_percent)) {
+        eff_percent <- 100  # Default to 100%
+      }
+      # Convert percentage to E value: E = 1 + (efficiency/100)
+      # E = 2.0 means 100% efficiency (doubling each cycle)
+      efficiencies[[target]] <- 1 + (eff_percent / 100)
+    }
+    efficiencies
+  })
+
+  # Validate efficiencies and show warnings
+  output$efficiencyWarningsUI <- renderUI({
+    if (!isTruthy(input$useEfficiencyCorrection)) return(NULL)
+    req(values$data)
+
+    targets <- unique(values$data$Target)
+    warnings <- list()
+
+    for (target in targets) {
+      input_id <- paste0("efficiency_", gsub("[^a-zA-Z0-9]", "_", target))
+      eff_percent <- input[[input_id]]
+
+      if (!is.null(eff_percent) && !is.na(eff_percent)) {
+        if (eff_percent < 90) {
+          warnings <- c(warnings, list(
+            div(class = "alert alert-warning", style = "padding: 5px; margin: 3px 0; font-size: 11px;",
+                tags$strong(target, ":"), tr("efficiency_warning_low", current_language()))
+          ))
+        } else if (eff_percent > 110) {
+          warnings <- c(warnings, list(
+            div(class = "alert alert-warning", style = "padding: 5px; margin: 3px 0; font-size: 11px;",
+                tags$strong(target, ":"), tr("efficiency_warning_high", current_language()))
+          ))
+        }
+      }
+    }
+
+    if (length(warnings) > 0) {
+      tagList(warnings)
+    }
+  })
+
+  # Standard curve file handling
+  observeEvent(input$stdCurveFile, {
+    req(input$stdCurveFile)
+
+    file_path <- input$stdCurveFile$datapath
+    file_name <- input$stdCurveFile$name
+
+    if (grepl("\\.(xlsx|xls)$", file_name, ignore.case = TRUE)) {
+      tryCatch({
+        sheets <- openxlsx::getSheetNames(file_path)
+        values$std_curve_sheets <- sheets
+      }, error = function(e) {
+        values$std_curve_sheets <- NULL
+        showNotificationWithLog(paste("Error reading Excel file:", e$message), type = "error")
+      })
+    } else {
+      values$std_curve_sheets <- NULL
+    }
+  })
+
+  output$stdCurveSheetSelection <- renderUI({
+    if (!is.null(values$std_curve_sheets) && length(values$std_curve_sheets) > 1) {
+      selectInput("stdCurveSheet", tr("select_sheet", current_language()),
+                  choices = values$std_curve_sheets)
+    }
+  })
+
+  # Calculate efficiency from standard curve
+  observeEvent(input$calculateEfficiency, {
+    req(input$stdCurveFile)
+
+    file_path <- input$stdCurveFile$datapath
+    file_name <- input$stdCurveFile$name
+
+    tryCatch({
+      # Read the standard curve data
+      if (grepl("\\.(xlsx|xls)$", file_name, ignore.case = TRUE)) {
+        sheet <- if (!is.null(input$stdCurveSheet)) input$stdCurveSheet else 1
+        std_data <- openxlsx::read.xlsx(file_path, sheet = sheet)
+      } else {
+        std_data <- read.csv(file_path, stringsAsFactors = FALSE)
+      }
+
+      # Expected columns: Target, Concentration (or Dilution), Cq
+      required_cols <- c("Target", "Cq")
+      conc_col <- intersect(names(std_data), c("Concentration", "concentration", "Conc", "conc",
+                                                "Dilution", "dilution", "Log_Conc", "log_conc"))
+
+      if (!all(required_cols %in% names(std_data)) || length(conc_col) == 0) {
+        showNotificationWithLog("Standard curve file must contain: Target, Cq, and Concentration (or Dilution) columns",
+                                type = "error")
+        return()
+      }
+
+      # Use first matching concentration column
+      names(std_data)[names(std_data) == conc_col[1]] <- "Concentration"
+
+      # Calculate efficiency for each target
+      calculated_effs <- std_data %>%
+        group_by(Target) %>%
+        summarise(
+          slope = coef(lm(Cq ~ log10(Concentration)))[2],
+          r_squared = summary(lm(Cq ~ log10(Concentration)))$r.squared,
+          efficiency_pct = 100 * (10^(-1/slope) - 1),
+          .groups = 'drop'
+        )
+
+      values$std_curve_data <- calculated_effs
+
+      showNotificationWithLog(paste("Efficiency calculated for", nrow(calculated_effs), "targets"),
+                              type = "message")
+
+    }, error = function(e) {
+      showNotificationWithLog(paste("Error calculating efficiency:", e$message), type = "error")
+    })
+  })
+
+  # Display calculated efficiencies
+  output$calculatedEfficiencyUI <- renderUI({
+    req(values$std_curve_data)
+
+    eff_display <- lapply(1:nrow(values$std_curve_data), function(i) {
+      row <- values$std_curve_data[i, ]
+      eff_class <- if (row$efficiency_pct < 90 || row$efficiency_pct > 110) "text-warning" else "text-success"
+
+      div(style = "margin-bottom: 5px; font-size: 12px;",
+          tags$strong(row$Target, ": "),
+          span(class = eff_class, sprintf("%.1f%%", row$efficiency_pct)),
+          tags$small(sprintf(" (slope: %.3f, R²: %.3f)", row$slope, row$r_squared))
+      )
+    })
+
+    div(
+      tags$h6(tr("calculated_efficiency", current_language()), style = "margin-top: 10px;"),
+      tagList(eff_display),
+      actionButton("applyCalculatedEfficiency", "Apply to Analysis",
+                   class = "btn-sm btn-success", style = "margin-top: 10px;")
+    )
+  })
+
+  # Apply calculated efficiencies to the manual inputs
+  observeEvent(input$applyCalculatedEfficiency, {
+    req(values$std_curve_data, values$data)
+
+    targets <- unique(values$data$Target)
+
+    for (target in targets) {
+      input_id <- paste0("efficiency_", gsub("[^a-zA-Z0-9]", "_", target))
+      calc_eff <- values$std_curve_data %>%
+        filter(Target == target) %>%
+        pull(efficiency_pct)
+
+      if (length(calc_eff) > 0) {
+        updateNumericInput(session, input_id, value = round(calc_eff[1], 1))
+      }
+    }
+
+    showNotificationWithLog("Calculated efficiencies applied", type = "message")
+  })
+
   output$sampleOrderUI <- renderUI({
     req(values$data)
     sortable::rank_list(
@@ -873,6 +1098,60 @@ shinyServer(function(input, output, session) {
       labels = unique(values$data$Sample),
       input_id = "sample_order_list"
     )
+  })
+
+  # Dynamic data display type dropdown with proper translations
+  output$dataDisplayTypeUI <- renderUI({
+    use_eff <- isTRUE(input$useEfficiencyCorrection)
+
+    # Build choices based on whether efficiency correction is enabled
+    choices <- list()
+    choices[[tr("fold_change", current_language())]] <- "fold_change"
+
+    if (use_eff) {
+      choices[[tr("fold_change_corrected", current_language())]] <- "fold_change_corrected"
+    }
+
+    choices[[tr("relative_quantity", current_language())]] <- "relative_quantity"
+
+    if (use_eff) {
+      choices[[tr("relative_quantity_corrected", current_language())]] <- "relative_quantity_corrected"
+    }
+
+    choices[[tr("ddct_values", current_language())]] <- "ddct"
+    choices[[tr("neg_ddct_values", current_language())]] <- "neg_ddct"
+    choices[[tr("dct_values", current_language())]] <- "dct"
+    choices[[tr("neg_dct_values", current_language())]] <- "neg_dct"
+
+    selectInput("dataDisplayType",
+                tr("data_display_type", current_language()),
+                choices = choices,
+                selected = isolate(input$dataDisplayType) %||% "fold_change")
+  })
+
+  # Dynamic stats data type dropdown with quantity options
+  output$statsDataTypeUI <- renderUI({
+    use_eff <- isTRUE(input$useEfficiencyCorrection)
+
+    choices <- list()
+    choices[[tr("ddct_values", current_language())]] <- "ddct"
+    choices[[tr("dct_values", current_language())]] <- "dct"
+    choices[[tr("fold_change", current_language())]] <- "fold_change"
+
+    if (use_eff) {
+      choices[[tr("fold_change_corrected", current_language())]] <- "fold_change_corrected"
+    }
+
+    choices[[tr("relative_quantity", current_language())]] <- "relative_quantity"
+
+    if (use_eff) {
+      choices[[tr("relative_quantity_corrected", current_language())]] <- "relative_quantity_corrected"
+    }
+
+    selectInput("statsDataType",
+                tr("test_on", current_language()),
+                choices = choices,
+                selected = isolate(input$statsDataType) %||% "ddct")
   })
   
   observeEvent(input$updatePlot, {
@@ -1043,20 +1322,28 @@ shinyServer(function(input, output, session) {
     detectHousekeepingGenes()
   })
   
-  calculateFoldChanges <- function(data, controlSample, housekeeping_genes) {
+  calculateFoldChanges <- function(data, controlSample, housekeeping_genes,
+                                    efficiencies = NULL, use_efficiency_correction = FALSE) {
     if(is.null(data) || nrow(data) == 0) {
       stop("No data available for analysis")
     }
-    
+
     if(is.null(controlSample) || !(controlSample %in% unique(data$Sample))) {
       stop("Invalid control sample selected")
     }
-    
+
     if(is.null(housekeeping_genes) || length(housekeeping_genes) == 0) {
       stop("No housekeeping genes selected")
     }
-    
-    # MIQE-compliant normalization: 
+
+    # If efficiency correction is enabled, ensure we have efficiency values
+    if (use_efficiency_correction && is.null(efficiencies)) {
+      # Default all efficiencies to 2.0 (100% efficiency)
+      all_targets <- unique(data$Target)
+      efficiencies <- setNames(rep(2.0, length(all_targets)), all_targets)
+    }
+
+    # MIQE-compliant normalization:
     # Step 1: Calculate arithmetic mean of technical replicates for each HK gene
     hk_means <- data %>%
       filter(Target %in% housekeeping_genes) %>%
@@ -1067,7 +1354,7 @@ shinyServer(function(input, output, session) {
         n_replicates = n(),
         .groups = 'drop'
       )
-    
+
     # Step 2: Calculate geometric or arithmetic mean of HK gene averages
     # Geometric mean is preferred for multiple reference genes (MIQE recommendation)
     ref_values <- hk_means %>%
@@ -1082,11 +1369,11 @@ shinyServer(function(input, output, session) {
         n_hk_genes = n(),
         .groups = 'drop'
       )
-    
+
     if(nrow(ref_values) == 0) {
       stop("No valid reference values calculated")
     }
-    
+
     # Calculate ΔCt values (Target Cq - Reference Cq) for non-housekeeping genes
     dct_values <- data %>%
       filter(!Target %in% housekeeping_genes) %>%
@@ -1095,7 +1382,7 @@ shinyServer(function(input, output, session) {
         dCt = Cq - ref_Cq,
         dCt_sd = if_else(is.na(ref_sd), 0, ref_sd)
       )
-    
+
     # Calculate control sample ΔCt values for ΔΔCt calculation
     control_values <- dct_values %>%
       filter(Sample == controlSample) %>%
@@ -1105,47 +1392,96 @@ shinyServer(function(input, output, session) {
         control_sd = sqrt(mean(dCt_sd^2, na.rm = TRUE)),  # RMS of standard deviations
         .groups = 'drop'
       )
-    
+
     if(nrow(control_values) == 0) {
       stop("No valid control values calculated")
     }
-    
-    # Calculate ΔΔCt and fold changes (2^-ΔΔCt method)
+
+    # Calculate ΔΔCt and fold changes
+    # MIQE 2.0: Use efficiency-corrected calculations (Pfaffl method) when available
     final_results <- dct_values %>%
       left_join(control_values, by = "Target") %>%
       mutate(
-        ddCt = dCt - control_dCt,                          # ΔΔCt = ΔCt - ΔCt_control
-        individual_fold_change = 2^(-ddCt),                # Fold change = 2^(-ΔΔCt)
-        fold_change_error = sqrt(dCt_sd^2 + control_sd^2)  # Error propagation
-      ) %>%
+        ddCt = dCt - control_dCt  # ΔΔCt = ΔCt - ΔCt_control
+      )
+
+    if (use_efficiency_correction) {
+      # Pfaffl method: (E_target)^(-ΔCt_target) / (E_ref)^(-ΔCt_ref)
+      # Simplified for normalized data: E^(-ΔΔCt) where E is target efficiency
+      # For relative quantity: E^(-ΔCt)
+      final_results <- final_results %>%
+        rowwise() %>%
+        mutate(
+          E_target = ifelse(!is.null(efficiencies[[Target]]), efficiencies[[Target]], 2.0),
+          individual_fold_change = E_target^(-ddCt),         # Fold change = E^(-ΔΔCt)
+          individual_fold_change_uncorrected = 2^(-ddCt),    # Keep uncorrected for comparison
+          relative_quantity = E_target^(-dCt),               # E^(-ΔCt)
+          relative_quantity_uncorrected = 2^(-dCt)           # 2^(-ΔCt)
+        ) %>%
+        ungroup() %>%
+        mutate(
+          fold_change_error = sqrt(dCt_sd^2 + control_sd^2)  # Error propagation
+        )
+    } else {
+      # Standard 2^-ΔΔCt method (assumes 100% efficiency)
+      final_results <- final_results %>%
+        mutate(
+          E_target = 2.0,
+          individual_fold_change = 2^(-ddCt),                # Fold change = 2^(-ΔΔCt)
+          individual_fold_change_uncorrected = 2^(-ddCt),
+          relative_quantity = 2^(-dCt),                      # 2^(-ΔCt)
+          relative_quantity_uncorrected = 2^(-dCt),
+          fold_change_error = sqrt(dCt_sd^2 + control_sd^2)  # Error propagation
+        )
+    }
+
+    # Calculate summary statistics
+    final_results <- final_results %>%
       group_by(Target, Sample) %>%
       mutate(
         mean_fold_change = mean(individual_fold_change, na.rm = TRUE),
         sd_fold_change = sd(individual_fold_change, na.rm = TRUE),
-        sem_fold_change = sd_fold_change/sqrt(n()),        # Standard error of mean
+        sem_fold_change = sd_fold_change/sqrt(n()),          # Standard error of mean
+        mean_fold_change_uncorrected = mean(individual_fold_change_uncorrected, na.rm = TRUE),
+        mean_relative_quantity = mean(relative_quantity, na.rm = TRUE),
+        sd_relative_quantity = sd(relative_quantity, na.rm = TRUE),
+        sem_relative_quantity = sd_relative_quantity/sqrt(n()),
+        mean_relative_quantity_uncorrected = mean(relative_quantity_uncorrected, na.rm = TRUE),
         n_replicates = n()
       ) %>%
       ungroup() %>%
       arrange(Sample, Target)
-    
+
     return(final_results)
   }
   
   performStatisticalAnalysis <- function(results) {
     req(results)
-    
+
     stats_results <- list()
-    
-    test_column <- if(input$statsDataType == "dct") "dCt" else "ddCt"
-    
+
+    # Map statsDataType to actual column names
+    test_column <- switch(input$statsDataType,
+      "dct" = "dCt",
+      "ddct" = "ddCt",
+      "fold_change" = "individual_fold_change_uncorrected",
+      "fold_change_corrected" = "individual_fold_change",
+      "relative_quantity" = "relative_quantity_uncorrected",
+      "relative_quantity_corrected" = "relative_quantity",
+      "ddCt"  # default
+    )
+
     for(target in unique(results$Target)) {
-      target_data <- results %>% 
+      target_data <- results %>%
         filter(Target == target)
-      
-      if(test_column == "dCt") {
+
+      # Filter out NA and non-finite values for the test column
+      if (test_column %in% names(target_data)) {
         target_data <- target_data %>%
-          filter(!is.na(dCt), is.finite(dCt))
+          filter(!is.na(.data[[test_column]]), is.finite(.data[[test_column]]))
       } else {
+        # Fallback to ddCt if column doesn't exist
+        test_column <- "ddCt"
         target_data <- target_data %>%
           filter(!is.na(ddCt), is.finite(ddCt))
       }
@@ -1461,8 +1797,21 @@ shinyServer(function(input, output, session) {
     } else if(input$dataDisplayType == "neg_dct") {
       plot_data$plot_value <- -plot_data$dCt
       y_label <- expression("-" * Delta * "Ct")
-    } else {
+    } else if(input$dataDisplayType == "fold_change_corrected") {
+      # Efficiency-corrected fold change (MIQE 2.0 Pfaffl method)
       plot_data$plot_value <- plot_data$individual_fold_change
+      y_label <- expression("Fold Change (E"^"-" * Delta * Delta * "Ct)")
+    } else if(input$dataDisplayType == "relative_quantity") {
+      # Relative quantity 2^(-ΔCt)
+      plot_data$plot_value <- plot_data$relative_quantity_uncorrected
+      y_label <- expression("Relative Quantity (2"^"-" * Delta * "Ct)")
+    } else if(input$dataDisplayType == "relative_quantity_corrected") {
+      # Efficiency-corrected relative quantity E^(-ΔCt)
+      plot_data$plot_value <- plot_data$relative_quantity
+      y_label <- expression("Relative Quantity (E"^"-" * Delta * "Ct)")
+    } else {
+      # Default: fold change 2^(-ΔΔCt)
+      plot_data$plot_value <- plot_data$individual_fold_change_uncorrected
       y_label <- expression("Fold Change (2"^"-" * Delta * Delta * "Ct)")
     }
     
@@ -1637,23 +1986,47 @@ shinyServer(function(input, output, session) {
   })
   
   output$resultsTable <- DT::renderDataTable({
-    
+
     if (!values$analysis_run) {
       return(NULL)
     }
-    
+
     req(values$results, values$stats_results)
-    
-    results_table <- values$results %>%
-      select(
-        Sample, Target, Cq,
-        dCt, ddCt, individual_fold_change,
-        mean_fold_change, sd_fold_change, sem_fold_change,
-        n_replicates
-      ) %>%
+
+    use_eff <- isTRUE(input$useEfficiencyCorrection)
+
+    # Select columns based on whether efficiency correction is enabled
+    if (use_eff) {
+      results_table <- values$results %>%
+        select(
+          Sample, Target, Cq,
+          dCt, ddCt,
+          E_target,
+          `2^-dCt` = relative_quantity_uncorrected,
+          `E^-dCt` = relative_quantity,
+          `2^-ddCt` = individual_fold_change_uncorrected,
+          `E^-ddCt` = individual_fold_change,
+          mean_fold_change, sem_fold_change,
+          mean_relative_quantity, sem_relative_quantity,
+          n_replicates
+        )
+    } else {
+      results_table <- values$results %>%
+        select(
+          Sample, Target, Cq,
+          dCt, ddCt,
+          `2^-dCt` = relative_quantity,
+          `2^-ddCt` = individual_fold_change,
+          mean_fold_change, sem_fold_change,
+          mean_relative_quantity, sem_relative_quantity,
+          n_replicates
+        )
+    }
+
+    results_table <- results_table %>%
       arrange(Target, Sample, Cq) %>%
-      mutate(across(where(is.numeric), ~ round(.x, 3)))
-    
+      mutate(across(where(is.numeric), ~ round(.x, 4)))
+
     DT::datatable(
       results_table,
       extensions = c('Buttons'),
@@ -1676,10 +2049,18 @@ shinyServer(function(input, output, session) {
   
   output$statsOutput <- renderText({
     req(values$stats_results)
-    
+
     output_text <- character()
-    
-    data_type_label <- if(input$statsDataType == "dct") "ΔCt values" else "ΔΔCt values"
+
+    data_type_label <- switch(input$statsDataType,
+      "dct" = "ΔCt values",
+      "ddct" = "ΔΔCt values",
+      "fold_change" = "Fold Change (2^-ΔΔCt)",
+      "fold_change_corrected" = "Fold Change - Efficiency Corrected (E^-ΔΔCt)",
+      "relative_quantity" = "Relative Quantity (2^-ΔCt)",
+      "relative_quantity_corrected" = "Relative Quantity - Efficiency Corrected (E^-ΔCt)",
+      "ΔΔCt values"
+    )
     output_text <- c(output_text,
                      paste("=== STATISTICAL ANALYSIS REPORT ===\n"),
                      paste("Data tested:", data_type_label),
@@ -1792,8 +2173,14 @@ shinyServer(function(input, output, session) {
           cv_percent = (sd_Cq / mean_Cq) * 100,
           mean_dCt = mean(dCt, na.rm = TRUE),
           mean_ddCt = mean(ddCt, na.rm = TRUE),
-          fold_change = mean(individual_fold_change, na.rm = TRUE),
-          fold_change_sem = sd(individual_fold_change, na.rm = TRUE) / sqrt(n()),
+          fold_change_2ddCt = mean(individual_fold_change_uncorrected, na.rm = TRUE),
+          fold_change_2ddCt_sem = sd(individual_fold_change_uncorrected, na.rm = TRUE) / sqrt(n()),
+          fold_change_EddCt = mean(individual_fold_change, na.rm = TRUE),
+          fold_change_EddCt_sem = sd(individual_fold_change, na.rm = TRUE) / sqrt(n()),
+          relative_qty_2dCt = mean(relative_quantity_uncorrected, na.rm = TRUE),
+          relative_qty_2dCt_sem = sd(relative_quantity_uncorrected, na.rm = TRUE) / sqrt(n()),
+          relative_qty_EdCt = mean(relative_quantity, na.rm = TRUE),
+          relative_qty_EdCt_sem = sd(relative_quantity, na.rm = TRUE) / sqrt(n()),
           .groups = 'drop'
         )
       writeData(wb, "5_Summary_Results", summary_results)
@@ -1870,6 +2257,8 @@ shinyServer(function(input, output, session) {
           "HK Detection Pattern",
           "Geometric Mean for HK",
           "Excluded Points",
+          "Efficiency Correction (MIQE 2.0)",
+          "Efficiency Input Method",
           "Statistical Test",
           "Statistical Data Type",
           "P-value Adjustment Method",
@@ -1891,17 +2280,25 @@ shinyServer(function(input, output, session) {
           ifelse(input$autoDetectHK, input$hkPattern, "N/A"),
           ifelse(input$useGeometricMean, "Yes", "No"),
           length(values$excluded_points),
+          ifelse(isTRUE(input$useEfficiencyCorrection), "Enabled (Pfaffl method)", "Disabled (assumes 100%)"),
+          ifelse(isTRUE(input$useEfficiencyCorrection),
+                 ifelse(isTRUE(input$efficiencyInputMethod == "standard_curve"), "Standard Curve", "Manual Entry"),
+                 "N/A"),
           ifelse(input$statsTest == "anova", "One-way ANOVA", "Kruskal-Wallis"),
           ifelse(input$statsDataType == "ddct", "ΔΔCt Values", "ΔCt Values"),
           input$pAdjustMethod,
           input$pThreshold,
-          switch(input$dataDisplayType, 
+          switch(input$dataDisplayType,
                  "fold_change" = "Fold Change (2^-ΔΔCt)",
+                 "fold_change_corrected" = "Fold Change - Efficiency Corrected (E^-ΔΔCt)",
+                 "relative_quantity" = "Relative Quantity (2^-ΔCt)",
+                 "relative_quantity_corrected" = "Relative Quantity - Efficiency Corrected (E^-ΔCt)",
                  "ddct" = "ΔΔCt Values",
                  "neg_ddct" = "-ΔΔCt Values",
                  "dct" = "ΔCt Values",
-                 "neg_dct" = "-ΔCt Values"),
-          switch(input$plotType, 
+                 "neg_dct" = "-ΔCt Values",
+                 "Fold Change (2^-ΔΔCt)"),
+          switch(input$plotType,
                  "bar" = "Bar Plot",
                  "box" = "Box Plot",
                  "violin" = "Violin Plot",
@@ -1922,6 +2319,25 @@ shinyServer(function(input, output, session) {
         )
       )
       writeData(wb, "9_Analysis_Parameters", analysis_params)
+
+      # Add Efficiency Values sheet (MIQE 2.0)
+      addWorksheet(wb, "10_Efficiency_Values")
+      if (isTRUE(input$useEfficiencyCorrection)) {
+        eff_vals <- getEfficiencyValues()
+        eff_data <- data.frame(
+          Target = names(eff_vals),
+          E_value = unlist(eff_vals),
+          Efficiency_percent = (unlist(eff_vals) - 1) * 100,
+          Within_MIQE_range = ifelse((unlist(eff_vals) - 1) * 100 >= 90 &
+                                     (unlist(eff_vals) - 1) * 100 <= 110,
+                                     "Yes", "No - Outside 90-110%"),
+          stringsAsFactors = FALSE
+        )
+        writeData(wb, "10_Efficiency_Values", eff_data)
+      } else {
+        writeData(wb, "10_Efficiency_Values",
+                  data.frame(Note = "Efficiency correction not enabled. Using default 100% efficiency (E=2.0) for all targets."))
+      }
       
       for(sheet in names(wb)) {
         addStyle(wb, sheet, createStyle(textDecoration = "bold"), rows = 1, cols = 1:50)

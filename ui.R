@@ -116,7 +116,47 @@ shinyUI(fluidPage(
                                        value = TRUE)
                      )
                    ),
-                   
+
+                   # PCR Efficiency Settings (MIQE 2.0 compliance)
+                   tags$details(
+                     tags$summary(textOutput("efficiency_settings", inline = TRUE),
+                                  style = "cursor: pointer; color: #3498db;"),
+                     div(style = "margin-top: 10px;",
+                         checkboxInput("useEfficiencyCorrection",
+                                       textOutput("use_efficiency_correction", inline = TRUE),
+                                       value = FALSE),
+                         conditionalPanel(
+                           condition = "input.useEfficiencyCorrection == true",
+                           radioButtons("efficiencyInputMethod",
+                                        textOutput("efficiency_input_method", inline = TRUE),
+                                        choices = list(
+                                          "manual_entry" = "manual",
+                                          "standard_curve" = "standard_curve"
+                                        ),
+                                        selected = "manual"),
+                           conditionalPanel(
+                             condition = "input.efficiencyInputMethod == 'manual'",
+                             uiOutput("efficiencyInputsUI"),
+                             tags$small(class = "info-text",
+                                        textOutput("efficiency_help", inline = TRUE))
+                           ),
+                           conditionalPanel(
+                             condition = "input.efficiencyInputMethod == 'standard_curve'",
+                             fileInput("stdCurveFile",
+                                       textOutput("upload_std_curve", inline = TRUE),
+                                       accept = c("text/csv", ".csv", ".xlsx", ".xls")),
+                             uiOutput("stdCurveSheetSelection"),
+                             actionButton("calculateEfficiency",
+                                          textOutput("calculate_efficiency", inline = TRUE),
+                                          class = "btn-info btn-sm",
+                                          style = "margin-bottom: 10px;"),
+                             uiOutput("calculatedEfficiencyUI")
+                           )
+                         ),
+                         uiOutput("efficiencyWarningsUI")
+                     )
+                   ),
+
                    # Run Analysis and Download All Results
                    hr(style = "margin: 20px 0 15px 0;"),
                    actionButton("runAnalysis", textOutput("run_analysis", inline = TRUE), 
@@ -138,14 +178,8 @@ shinyUI(fluidPage(
                                  "kruskal_wallis" = "kruskal"
                                )),
                    
-                   # Update choices dynamically in server
-                   
-                   selectInput("statsDataType", textOutput("test_on", inline = TRUE),
-                               choices = list(
-                                 "ddct_values" = "ddct",
-                                 "dct_values" = "dct"
-                               ),
-                               selected = "ddct"),
+                   # Dynamic choices based on efficiency correction
+                   uiOutput("statsDataTypeUI"),
                    
                    # Advanced statistics in collapsible
                    tags$details(
@@ -187,16 +221,7 @@ shinyUI(fluidPage(
                              textOutput("plot_title", inline = TRUE), 
                              value = ""),
                    
-                   selectInput("dataDisplayType",
-                               textOutput("data_display_type", inline = TRUE),
-                               choices = list(
-                                 "fold_change" = "fold_change",
-                                 "ddct_values" = "ddct",
-                                 "neg_ddct_values" = "neg_ddct",
-                                 "dct_values" = "dct",
-                                 "neg_dct_values" = "neg_dct"
-                               ),
-                               selected = "fold_change"),
+                   uiOutput("dataDisplayTypeUI"),
                    
                    selectInput("plotType", textOutput("plot_type", inline = TRUE),
                                choices = list(

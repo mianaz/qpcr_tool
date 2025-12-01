@@ -63,6 +63,65 @@ tr <- function(key, lang = "en") {
       "en" = "Use geometric mean of housekeeping gene values",
       "zh" = "使用管家基因值的几何平均值"
     ),
+
+    # PCR Efficiency settings (MIQE 2.0)
+    "efficiency_settings" = list(
+      "en" = "PCR Efficiency Settings (MIQE 2.0)",
+      "zh" = "PCR效率设置（MIQE 2.0）"
+    ),
+    "use_efficiency_correction" = list(
+      "en" = "Use efficiency-corrected calculations (Pfaffl method)",
+      "zh" = "使用效率校正计算（Pfaffl方法）"
+    ),
+    "efficiency_input_method" = list(
+      "en" = "Efficiency Input Method:",
+      "zh" = "效率输入方式："
+    ),
+    "manual_entry" = list(
+      "en" = "Manual Entry",
+      "zh" = "手动输入"
+    ),
+    "standard_curve" = list(
+      "en" = "Calculate from Standard Curve",
+      "zh" = "从标准曲线计算"
+    ),
+    "efficiency_help" = list(
+      "en" = "Enter efficiency as percentage (90-110%). Values outside this range will show a warning.",
+      "zh" = "输入效率百分比（90-110%）。超出此范围将显示警告。"
+    ),
+    "upload_std_curve" = list(
+      "en" = "Upload Standard Curve Data",
+      "zh" = "上传标准曲线数据"
+    ),
+    "calculate_efficiency" = list(
+      "en" = "Calculate Efficiency",
+      "zh" = "计算效率"
+    ),
+    "efficiency_for_target" = list(
+      "en" = "Efficiency for",
+      "zh" = "效率："
+    ),
+    "efficiency_warning_low" = list(
+      "en" = "Warning: Efficiency below 90% may indicate primer problems",
+      "zh" = "警告：效率低于90%可能表示引物问题"
+    ),
+    "efficiency_warning_high" = list(
+      "en" = "Warning: Efficiency above 110% may indicate contamination or pipetting errors",
+      "zh" = "警告：效率高于110%可能表示污染或移液误差"
+    ),
+    "calculated_efficiency" = list(
+      "en" = "Calculated Efficiency",
+      "zh" = "计算的效率"
+    ),
+    "std_curve_slope" = list(
+      "en" = "Slope",
+      "zh" = "斜率"
+    ),
+    "std_curve_r2" = list(
+      "en" = "R²",
+      "zh" = "R²"
+    ),
+
     "run_analysis" = list(
       "en" = "Run Analysis",
       "zh" = "运行分析"
@@ -198,6 +257,18 @@ tr <- function(key, lang = "en") {
     "fold_change" = list(
       "en" = "Fold Change (2^-ΔΔCt)",
       "zh" = "表达倍数 (2^-ΔΔCt)"
+    ),
+    "fold_change_corrected" = list(
+      "en" = "Fold Change - Efficiency Corrected (E^-ΔΔCt)",
+      "zh" = "表达倍数 - 效率校正 (E^-ΔΔCt)"
+    ),
+    "relative_quantity" = list(
+      "en" = "Relative Quantity (2^-ΔCt)",
+      "zh" = "相对表达量 (2^-ΔCt)"
+    ),
+    "relative_quantity_corrected" = list(
+      "en" = "Relative Quantity - Efficiency Corrected (E^-ΔCt)",
+      "zh" = "相对表达量 - 效率校正 (E^-ΔCt)"
     ),
     "neg_ddct_values" = list(
       "en" = "-ΔΔCt Values",
