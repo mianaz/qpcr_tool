@@ -127,13 +127,7 @@ shinyUI(fluidPage(
                                        value = FALSE),
                          conditionalPanel(
                            condition = "input.useEfficiencyCorrection == true",
-                           radioButtons("efficiencyInputMethod",
-                                        textOutput("efficiency_input_method", inline = TRUE),
-                                        choices = list(
-                                          "manual_entry" = "manual",
-                                          "standard_curve" = "standard_curve"
-                                        ),
-                                        selected = "manual"),
+                          uiOutput("efficiencyInputMethodUI"),
                            conditionalPanel(
                              condition = "input.efficiencyInputMethod == 'manual'",
                              uiOutput("efficiencyInputsUI"),
@@ -145,6 +139,8 @@ shinyUI(fluidPage(
                              fileInput("stdCurveFile",
                                        textOutput("upload_std_curve", inline = TRUE),
                                        accept = c("text/csv", ".csv", ".xlsx", ".xls")),
+                            tags$small(class = "info-text",
+                                       textOutput("std_curve_help", inline = TRUE)),
                              uiOutput("stdCurveSheetSelection"),
                              actionButton("calculateEfficiency",
                                           textOutput("calculate_efficiency", inline = TRUE),
@@ -260,6 +256,10 @@ shinyUI(fluidPage(
                          checkboxInput("showIndividualPoints", 
                                        textOutput("show_individual_points", inline = TRUE), 
                                        value = TRUE),
+
+                        checkboxInput("showBorderLines",
+                                      textOutput("show_border_lines", inline = TRUE),
+                                      value = TRUE),
                          
                          checkboxInput("showSignificance", 
                                        textOutput("show_significance", inline = TRUE), 

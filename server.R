@@ -24,14 +24,24 @@ shinyServer(function(input, output, session) {
   } else if (Sys.info()["sysname"] == "Windows") {
     Sys.setlocale("LC_CTYPE", "Chinese")
   }
+  # Helper to safely render plot titles (avoids encoding issues with Chinese in ggplot)
   safe_plot_title <- function(text, lang) {
     if (lang == "zh") {
-      return("Relative Expression Analysis")
-    } else {
-      return(text)
+      return(tr("default_plot_title", lang))
     }
+    if (is.null(text) || text == "") {
+      return(tr("default_plot_title", lang))
+    }
+    return(text)
   }
-  
+
+  # Helper function to get plot dimensions with defaults
+  getPlotDimensions <- function(input, default_width = 10, default_height = 8) {
+    width <- if(is.null(input$plotWidth) || input$plotWidth == 0) default_width else input$plotWidth
+    height <- if(is.null(input$plotHeight) || input$plotHeight == 0) default_height else input$plotHeight
+    list(width = width, height = height)
+  }
+
   current_language <- reactive({
     input$language %||% "en"  # Default to English
   })
@@ -159,6 +169,7 @@ shinyServer(function(input, output, session) {
   output$use_efficiency_correction <- renderText({ tr("use_efficiency_correction", current_language()) })
   output$efficiency_input_method <- renderText({ tr("efficiency_input_method", current_language()) })
   output$efficiency_help <- renderText({ tr("efficiency_help", current_language()) })
+  output$std_curve_help <- renderText({ tr("std_curve_help", current_language()) })
   output$upload_std_curve <- renderText({ tr("upload_std_curve", current_language()) })
   output$calculate_efficiency <- renderText({ tr("calculate_efficiency", current_language()) })
 
@@ -181,6 +192,7 @@ shinyServer(function(input, output, session) {
   output$sample_order <- renderText({ tr("sample_order", current_language()) })
   output$update_plot <- renderText({ tr("update_plot", current_language()) })
   output$show_individual_points <- renderText({ tr("show_individual_points", current_language()) })
+  output$show_border_lines <- renderText({ tr("show_border_lines", current_language()) })
   output$show_significance <- renderText({ tr("show_significance", current_language()) })
   output$show_non_significant <- renderText({ tr("show_non_significant", current_language()) })
   output$significance_display <- renderText({ tr("significance_display", current_language()) })
@@ -358,7 +370,6 @@ shinyServer(function(input, output, session) {
     data = NULL,
     excluded_points = character(0),
     housekeeping_genes = NULL,
-    validation_messages = NULL,
     results = NULL,
     stats_results = NULL,
     sample_order = NULL,
@@ -515,8 +526,7 @@ shinyServer(function(input, output, session) {
       cat("[INFO]", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "- Found", length(sheets), "sheets:", paste(sheets, collapse = ", "), "\n")
       
       valid_sheets <- character()
-      sheet_info <- list()
-      
+
       for(sheet in sheets) {
         cat("[INFO]", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "- Checking sheet:", sheet, "\n")
         
@@ -551,8 +561,7 @@ shinyServer(function(input, output, session) {
       
       values$excel_sheets <- list(
         all_sheets = sheets,
-        valid_sheets = valid_sheets,
-        sheet_info = sheet_info
+        valid_sheets = valid_sheets
       )
       
       if(length(valid_sheets) == 0) {
@@ -888,6 +897,18 @@ shinyServer(function(input, output, session) {
   # ============================================================
   # PCR Efficiency UI and Calculations (MIQE 2.0 compliance)
   # ============================================================
+
+  # Dynamic efficiency input method radio buttons with translations
+  output$efficiencyInputMethodUI <- renderUI({
+    choices <- list()
+    choices[[tr("efficiency_method_manual", current_language())]] <- "manual"
+    choices[[tr("efficiency_method_standard_curve", current_language())]] <- "standard_curve"
+
+    radioButtons("efficiencyInputMethod",
+                 tr("efficiency_input_method", current_language()),
+                 choices = choices,
+                 selected = "manual")
+  })
 
   # Generate efficiency input fields for each target gene
   output$efficiencyInputsUI <- renderUI({
@@ -1337,10 +1358,11 @@ shinyServer(function(input, output, session) {
     }
 
     # If efficiency correction is enabled, ensure we have efficiency values
-    if (use_efficiency_correction && is.null(efficiencies)) {
+    if (use_efficiency_correction && (is.null(efficiencies) || length(efficiencies) == 0)) {
       # Default all efficiencies to 2.0 (100% efficiency)
       all_targets <- unique(data$Target)
       efficiencies <- setNames(rep(2.0, length(all_targets)), all_targets)
+      showNotificationWithLog(tr("efficiency_defaults_used", current_language()), type = "warning", duration = 5)
     }
 
     # MIQE-compliant normalization:
@@ -1704,11 +1726,9 @@ shinyServer(function(input, output, session) {
         
         values$edit_history <- c(values$edit_history, list(new_edit))
         
-        showNotificationWithLog(sprintf("Updated %s from %s to %s in row %d", 
-                                 col_name, old_value, v, actual_row_index), 
+        showNotificationWithLog(sprintf("Updated %s from %s to %s in row %d",
+                                 col_name, old_value, v, actual_row_index),
                          type = "message")
-        
-        values$data <- values$data
       } else {
         showNotificationWithLog("Error: Could not locate row to update", type = "error")
       }
@@ -1818,12 +1838,17 @@ shinyServer(function(input, output, session) {
     p <- ggplot(plot_data, aes(x = Sample, y = plot_value)) +
       facet_wrap(~Target, scales = "free", ncol = input$facetCols)
     
+    # Determine border color based on showBorderLines setting
+    border_color <- if(isTRUE(input$showBorderLines)) "black" else NA
+
     if(input$plotType == "bar") {
       p <- p + stat_summary(aes(fill = Sample),
                             fun = mean,
                             geom = "bar",
                             position = position_dodge(0.9),
                             alpha = 0.7,
+                            color = border_color,
+                            linewidth = 0.5,
                             na.rm = TRUE)
       
       # Add error bars only for bar plots
@@ -1849,12 +1874,14 @@ shinyServer(function(input, output, session) {
     } else if(input$plotType == "box") {
       p <- p + geom_boxplot(aes(fill = Sample),
                             alpha = 0.7,
+                            color = border_color,
                             outlier.shape = if(input$showIndividualPoints) NA else 19,
                             na.rm = TRUE)
     } else if(input$plotType == "violin") {
       # Violin plot with normal smoothing
       p <- p + geom_violin(aes(fill = Sample),
                            alpha = 0.7,
+                           color = border_color,
                            scale = "width",
                            trim = FALSE,
                            na.rm = TRUE)
@@ -1862,6 +1889,7 @@ shinyServer(function(input, output, session) {
       p <- p + geom_boxplot(aes(fill = Sample),
                             width = 0.1,
                             alpha = 0.5,
+                            color = border_color,
                             outlier.shape = if(input$showIndividualPoints) NA else 19,
                             na.rm = TRUE)
     } else if(input$plotType == "beeswarm") {
@@ -2352,48 +2380,42 @@ shinyServer(function(input, output, session) {
       # Generate QC plots
       if(!is.null(values$data)) {
         qc_plots <- createQCPlot(values$data, values$excluded_points, input$colorPalette)
-        
-        # Use fallback values if inputs are NULL
-        plot_width <- if(is.null(input$plotWidth) || input$plotWidth == 0) 10 else input$plotWidth
-        plot_height <- if(is.null(input$plotHeight) || input$plotHeight == 0) 8 else input$plotHeight
-        
+        dims <- getPlotDimensions(input)
+
         # Save QC plots as PNG
         qc_png_file <- file.path(temp_dir, "QC_plots.png")
-        png(qc_png_file, width = plot_width * 300, height = plot_height * 300, res = 300)
+        png(qc_png_file, width = dims$width * 300, height = dims$height * 300, res = 300)
         gridExtra::grid.arrange(qc_plots$p1, qc_plots$p2, ncol = 1)
         dev.off()
         temp_files <- c(temp_files, qc_png_file)
         
         # Save QC plots as PDF
         qc_pdf_file <- file.path(temp_dir, "QC_plots.pdf")
-        pdf(qc_pdf_file, width = plot_width, height = plot_height)
+        pdf(qc_pdf_file, width = dims$width, height = dims$height)
         gridExtra::grid.arrange(qc_plots$p1, qc_plots$p2, ncol = 1)
         dev.off()
         temp_files <- c(temp_files, qc_pdf_file)
       }
-      
+
       # Generate main analysis plot
       if(!is.null(values$results)) {
         plot_data <- values$results %>%
           filter(!is.na(ddCt), is.finite(ddCt))
-        
+
         if(nrow(plot_data) > 0) {
           main_plot <- createFoldChangePlot(plot_data, values, input)
-          
-          # Use same fallback values as QC plots
-          plot_width <- if(is.null(input$plotWidth) || input$plotWidth == 0) 10 else input$plotWidth
-          plot_height <- if(is.null(input$plotHeight) || input$plotHeight == 0) 8 else input$plotHeight
-          
-          # Save main plot as PNG - using user's plot settings with fallbacks
+          dims <- getPlotDimensions(input)
+
+          # Save main plot as PNG
           main_png_file <- file.path(temp_dir, "Analysis_plot.png")
-          png(main_png_file, width = plot_width * 300, height = plot_height * 300, res = 300)
+          png(main_png_file, width = dims$width * 300, height = dims$height * 300, res = 300)
           print(main_plot)
           dev.off()
           temp_files <- c(temp_files, main_png_file)
           
-          # Save main plot as PDF - using user's plot settings with fallbacks
+          # Save main plot as PDF
           main_pdf_file <- file.path(temp_dir, "Analysis_plot.pdf")
-          pdf(main_pdf_file, width = plot_width, height = plot_height)
+          pdf(main_pdf_file, width = dims$width, height = dims$height)
           print(main_plot)
           dev.off()
           temp_files <- c(temp_files, main_pdf_file)
@@ -2428,15 +2450,12 @@ shinyServer(function(input, output, session) {
     },
     content = function(file) {
       req(values$analysis_run, values$results)
-      
-      # Use fallback values if inputs are NULL
-      plot_width <- if(is.null(input$plotWidth) || input$plotWidth == 0) 10 else input$plotWidth
-      plot_height <- if(is.null(input$plotHeight) || input$plotHeight == 0) 8 else input$plotHeight
-      
+      dims <- getPlotDimensions(input)
+
       if(input$plotFormat == "pdf") {
-        pdf(file, width = plot_width, height = plot_height)
+        pdf(file, width = dims$width, height = dims$height)
       } else {
-        png(file, width = plot_width * 300, height = plot_height * 300, res = 300)
+        png(file, width = dims$width * 300, height = dims$height * 300, res = 300)
       }
       
       plot_data <- values$results %>%
@@ -2449,43 +2468,6 @@ shinyServer(function(input, output, session) {
     }
   )
   
-  
-  validateDataCompleteness <- function(data) {
-    validation_messages <- character()
-    
-    missing_values <- colSums(is.na(data))
-    if(any(missing_values > 0)) {
-      validation_messages <- c(
-        validation_messages,
-        paste("Missing values found in columns:",
-              paste(names(missing_values[missing_values > 0]), collapse = ", "))
-      )
-    }
-    
-    replicate_counts <- data %>%
-      group_by(Target, Sample) %>%
-      summarise(n = n(), .groups = 'drop')
-    
-    if(any(replicate_counts$n < 3)) {
-      low_replicates <- replicate_counts %>%
-        filter(n < 3)
-      validation_messages <- c(
-        validation_messages,
-        paste("Warning: Less than 3 replicates found for:",
-              paste(paste(low_replicates$Target, low_replicates$Sample,
-                          sep = "-"), collapse = ", "))
-      )
-    }
-    
-    if(any(data$Cq < 0 | data$Cq > 40)) {
-      validation_messages <- c(
-        validation_messages,
-        "Warning: Cq values outside expected range (0-40) detected"
-      )
-    }
-    
-    return(validation_messages)
-  }
   
   addSignificanceMarkers <- function(p, plot_data, values, input) {
     for(target in names(values$stats_results)) {
@@ -2587,15 +2569,6 @@ shinyServer(function(input, output, session) {
     return(p)
   }
   
-  formatPValue <- function(p_value) {
-    case_when(
-      p_value < 0.001 ~ "< 0.001",
-      p_value < 0.01 ~ sprintf("%.3f", p_value),
-      p_value < 0.05 ~ sprintf("%.3f", p_value),
-      TRUE ~ sprintf("%.3f", p_value)
-    )
-  }
-
   # Helper function to expand a palette to the required number of colors
   expandPalette <- function(base_colors, n_needed) {
     if(n_needed <= length(base_colors)) {

@@ -932,6 +932,36 @@ tr <- function(key, lang = "en") {
     "help_practice_export_complete" = list(
       "en" = "Export complete results including all parameters and modifications",
       "zh" = "导出包含所有参数和修改的完整结果"
+    ),
+
+    # Plot default title (for encoding safety with Chinese)
+    "default_plot_title" = list(
+      "en" = "Relative Expression Analysis",
+      "zh" = "Relative Expression Analysis"
+    ),
+
+    # Border line option
+    "show_border_lines" = list(
+      "en" = "Show border lines on bars/boxes",
+      "zh" = "显示条形图/箱线图边框"
+    ),
+
+    # MIQE 2.0 efficiency input method labels
+    "efficiency_method_manual" = list(
+      "en" = "Manual Entry",
+      "zh" = "手动输入"
+    ),
+    "efficiency_method_standard_curve" = list(
+      "en" = "Standard Curve",
+      "zh" = "标准曲线"
+    ),
+    "std_curve_help" = list(
+      "en" = "Required columns: Target, Concentration, Cq",
+      "zh" = "必须包含列：Target（目标基因）、Concentration（浓度）、Cq"
+    ),
+    "efficiency_defaults_used" = list(
+      "en" = "Note: Using default 100% efficiency (E=2.0) for targets without specified values",
+      "zh" = "注意：未指定值的目标使用默认100%效率（E=2.0）"
     )
   )
   
